@@ -56,6 +56,9 @@ def failures(svrl_text, ruleset):
 def check(proc, xml_path):
     started = time.time()
     try:
+        with open(xml_path, "rb") as f:
+            if b"<!DOCTYPE" in f.read():
+                return {"wellFormed": False, "error": "The XML has a DOCTYPE; Peppol UBL invoices must not.", "failed": [], "warnings": []}
         ET.parse(xml_path)
     except ET.ParseError as e:
         return {"wellFormed": False, "error": f"The XML is not well-formed: {e}", "failed": [], "warnings": []}

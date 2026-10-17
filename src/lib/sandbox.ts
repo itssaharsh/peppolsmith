@@ -116,7 +116,7 @@ export async function bootstrap(sb: Sandbox, log: Log = quiet): Promise<SelfTest
   await sb.sh(
     "cd /opt/val && /opt/v/bin/python validate.py compile && " +
       "sha256sum *.xslt *.xsl *.sch *.xml validate.py > MANIFEST && " +
-      "chown -R root:root /opt/val && chmod -R a-w /opt/val && mkdir -p /work && chmod 1777 /work",
+      "chown -R root:root /opt/val && chmod -R a-w,a+rX /opt/val && chmod -R a+rX,go-w /opt/v && mkdir -p /work && chmod 1777 /work",
     { label: "compile + manifest", timeoutMs: 120_000 },
   );
   const st = await selfTest(sb);
@@ -133,7 +133,7 @@ export async function updateValidator(sb: Sandbox, log: Log = quiet): Promise<Se
   await sb.sh("chmod u+w /opt/val/validate.py /opt/val/MANIFEST", { label: "unseal files" });
   await sb.files.upload("/opt/val/validate.py", validatorSource());
   await sb.sh(
-    "cd /opt/val && sha256sum *.xslt *.xsl *.sch *.xml validate.py > MANIFEST && chown -R root:root /opt/val && chmod -R a-w /opt/val",
+    "cd /opt/val && sha256sum *.xslt *.xsl *.sch *.xml validate.py > MANIFEST && chown -R root:root /opt/val && chmod -R a-w,a+rX /opt/val && chmod -R a+rX,go-w /opt/v",
     { label: "reseal manifest" },
   );
   const st = await selfTest(sb);
@@ -173,7 +173,7 @@ export async function runMap(sb: Sandbox, runId: string): Promise<MapRun> {
   const t = Date.now();
   const r = await sb.runCommand(
     "sh",
-    ["-c", `cd /work/${id} && timeout 30 runuser -u nobody -- /usr/bin/python3 map.py`],
+    ["-c", `cd /work/${id} && timeout 30 runuser -u nobody -- /usr/bin/python3 map.py; rc=$?; pkill -9 -u nobody; exit $rc`],
     { timeoutMs: 60_000 },
   );
   const stderr = (r.result.stderr ?? "").slice(-4000);
@@ -195,12 +195,15 @@ export type Validation = {
   ms?: number;
 };
 
-/** Runs the official rules on out.xml after checking the validator files against the bootstrap manifest. */
+/**
+ * Runs the official rules on out.xml after checking the validator files against the bootstrap manifest. Every process
+ * of `nobody` (map.py's user) is killed first so the file can't change mid-check; validate.py rejects any DOCTYPE.
+ */
 export async function validateRun(sb: Sandbox, runId: string): Promise<Validation> {
   const id = safeRunId(runId);
   const r = await sb.runCommand(
     "sh",
-    ["-c", `cd /opt/val && sha256sum --quiet -c MANIFEST && /opt/v/bin/python validate.py check /work/${id}/out.xml`],
+    ["-c", `cd /opt/val && { sha256sum --quiet -c MANIFEST || exit 3; } && { pkill -9 -u nobody; /opt/v/bin/python validate.py check /work/${id}/out.xml; }`],
     { timeoutMs: 90_000 },
   );
   if (r.result.exit_code !== 0) {

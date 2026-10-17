@@ -11,7 +11,7 @@ function secret(): string {
 
 function digest(run: RunLog): string {
   const body = createHash("sha256").update(JSON.stringify(run.attempts)).digest("hex");
-  return createHmac("sha256", secret()).update(`${run.runId}|${run.source.kind}|${run.attempts.length}|${body}`).digest("hex");
+  return createHmac("sha256", secret()).update(`${run.runId}|${run.source.kind}|${run.verdict}|${run.attempts.length}|${body}`).digest("hex");
 }
 
 export function signRun(run: RunLog): RunLog {

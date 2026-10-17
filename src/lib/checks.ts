@@ -15,7 +15,7 @@ export const MUTATIONS: Record<Mutation, string> = {
   discount: "Drop the discount",
   buyer_id: "Invent a buyer Peppol ID",
 };
-export const isMutation = (x: unknown): x is Mutation => typeof x === "string" && x in MUTATIONS;
+export const isMutation = (x: unknown): x is Mutation => typeof x === "string" && Object.hasOwn(MUTATIONS, x);
 
 export type CheckResult = {
   ms: number;

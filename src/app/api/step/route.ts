@@ -3,7 +3,7 @@ import { stepRun } from "@/lib/run";
 import { MAX_ATTEMPTS } from "@/lib/agent";
 import { isSourceKind } from "@/lib/sources";
 import { resumeGolden } from "@/lib/sandbox";
-import { releaseRun, touchRun } from "@/lib/guard";
+import { claimStep, releaseRun } from "@/lib/guard";
 import type { RunLog } from "@/lib/runlog";
 import { signRun, verifyRun } from "@/lib/sign";
 
@@ -26,7 +26,9 @@ export async function POST(request: Request) {
     const golden = (await resumeGolden())?.sandbox;
     if (!golden) return Response.json({ error: "The sandbox VM is not available." }, { status: 503 });
     run = { ...run, sandbox: { ...run.sandbox, vmId: golden.id } }; // never trust a client-supplied VM id
-    if (!(await touchRun(golden, run.runId))) return Response.json({ error: "Another live run holds the sandbox.", reason: "busy" }, { status: 409 });
+    if (run.verdict !== "running" || !(await claimStep(golden, run.runId, run.attempts.length + 1))) {
+      return Response.json({ error: "This run can't take another step: it finished, the step already ran, or another live run holds the sandbox.", reason: "busy" }, { status: 409 });
+    }
     const next = await stepRun(run);
     if (next.verdict !== "running") await releaseRun(golden, run.runId);
     return Response.json(signRun(next));

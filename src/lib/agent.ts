@@ -10,6 +10,8 @@ import type { Source } from "./sources";
 import type { Attempt, RuleCount, Step } from "./runlog";
 
 export const MAX_ATTEMPTS = 6;
+/** Model time per attempt, so a step (model + VM run + rules) stays inside the 300 s function limit. */
+const MODEL_BUDGET_MS = 190_000;
 
 type Provider = { id: string; provider: string; url: string; keyEnv: string; inPerM: number; outPerM: number; timeoutMs: number; body?: Record<string, unknown> };
 
@@ -33,16 +35,21 @@ export const PROVIDERS: Provider[] = [
 export type ModelReply = { text: string; modelId: string; provider: string; ms: number; tokensIn: number; tokensOut: number; costUsd: number };
 
 export function extractCode(text: string): string | null {
-  const blocks = [...text.matchAll(/```(?:python|py)?\s*\n([\s\S]*?)```/g)].map((m) => m[1]);
+  const blocks = [...text.matchAll(/```(?:python|py)?\s*\n([\s\S]*?)```/g)].map((m) => m[1]).filter((b) => !/<{7} SEARCH|>{7} REPLACE/.test(b));
   if (blocks.length) return blocks.sort((a, b) => b.length - a.length)[0].trim() + "\n";
   if (/^\s*(import |from |#!)/.test(text)) return text.trim() + "\n";
   return null;
 }
 
 /** Calls the providers in order until one returns a usable code block. */
-export async function writeCode(userPrompt: string): Promise<ModelReply> {
+export async function writeCode(userPrompt: string, deadline = Date.now() + 200_000): Promise<ModelReply> {
   const errors: string[] = [];
   for (const p of PROVIDERS) {
+    const budget = Math.min(p.timeoutMs, deadline - Date.now());
+    if (budget < 15_000) {
+      errors.push(`${p.provider} ${p.id}: skipped, out of time for this attempt`);
+      continue;
+    }
     const key = process.env[p.keyEnv];
     if (!key) {
       errors.push(`${p.provider}: no key`);
@@ -63,9 +70,9 @@ export async function writeCode(userPrompt: string): Promise<ModelReply> {
             { role: "user", content: userPrompt },
           ],
         }),
-        signal: AbortSignal.timeout(p.timeoutMs),
+        signal: AbortSignal.timeout(budget),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0, 160)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = (await res.json()) as { model?: string; choices?: { message?: { content?: string }; finish_reason?: string }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
       const text = d.choices?.[0]?.message?.content ?? "";
       if (d.choices?.[0]?.finish_reason === "length") throw new Error("the reply hit the token limit");
@@ -102,14 +109,17 @@ export function countRules(failures: RuleFailure[]): RuleCount[] {
 export async function attempt(sb: Sandbox, runId: string, source: Source, previous: Attempt[]): Promise<Attempt> {
   const t0 = Date.now();
   const n = previous.length + 1;
-  const last = previous[previous.length - 1];
+  const deadline = t0 + MODEL_BUDGET_MS;
+  // build on the latest attempt that actually ran map.py; an attempt that failed before running has no feedback to give
+  const last = [...previous].reverse().find((a) => a.run !== null);
+  const lastChecked = [...previous].reverse().find((a) => a.rules !== null);
   const steps: Step[] = [];
   const step = (s: Step) => steps.push(s);
 
   // 1. write (or fix) map.py
   let reply: ModelReply;
   try {
-    reply = await writeCode(last ? fixPrompt(source, last, isStuck(previous)) : firstPrompt(source));
+    reply = await writeCode(last ? fixPrompt(source, last, isStuck(previous)) : firstPrompt(source), deadline);
   } catch (e) {
     step({ id: "write", status: "fail", ms: Date.now() - t0, who: "model", note: (e as Error).message });
     return blank(n, t0, steps, "error", (e as Error).message, last?.code ?? "");
@@ -126,7 +136,7 @@ export async function attempt(sb: Sandbox, runId: string, source: Source, previo
   if (!newCode && last) {
     // the edits didn't match the file: ask once for the whole program instead
     try {
-      const again = await writeCode(fixPrompt(source, last, true));
+      const again = await writeCode(fixPrompt(source, last, true), deadline);
       newCode = extractCode(again.text);
       reply = { ...again, ms: reply.ms + again.ms, tokensIn: reply.tokensIn + again.tokensIn, tokensOut: reply.tokensOut + again.tokensOut, costUsd: reply.costUsd + again.costUsd };
       editNote = `${editNote}; edits didn't match, asked for the whole file`;
@@ -164,7 +174,7 @@ export async function attempt(sb: Sandbox, runId: string, source: Source, previo
   const tv = Date.now();
   const v = await validateRun(sb, runId);
   const failed = countRules(v.failed);
-  const prevIds = new Set(last?.rules?.failed.map((f) => f.id) ?? []);
+  const prevIds = new Set(lastChecked?.rules?.failed.map((f) => f.id) ?? []);
   const nowIds = new Set(failed.map((f) => f.id));
   const rules = {
     failed,

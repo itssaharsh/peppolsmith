@@ -2,7 +2,7 @@
 import { randomBytes } from "node:crypto";
 import artefacts from "../../vm/artefacts.json";
 import { attempt, isFinal } from "./agent";
-import { EGRESS_LOCK, IMAGE, SHAPE, client, ensureGolden, type Log } from "./sandbox";
+import { EGRESS_LOCK, IMAGE, SHAPE, resumeGolden, type Log } from "./sandbox";
 import { loadSource, type SourceKind } from "./sources";
 import type { Attempt, RunLog } from "./runlog";
 
@@ -16,9 +16,11 @@ export const RULESETS: RunLog["rulesets"] = [
   { name: "Peppol BIS Billing 3.0", version: "v3.0.20", file: "PEPPOL-EN16931-UBL.sch", sha256: sha("PEPPOL-EN16931-UBL.sch") },
 ];
 
-export async function startRun(kind: SourceKind, log?: Log): Promise<RunLog> {
+export async function startRun(kind: SourceKind, _log?: Log): Promise<RunLog> {
   const source = loadSource(kind);
-  const { sandbox, resumeMs } = await ensureGolden(log);
+  const golden = await resumeGolden();
+  if (!golden) throw new Error("the validator VM is not available");
+  const { sandbox, resumeMs } = golden;
   return {
     runId: newRunId(),
     mode: "live",
@@ -57,10 +59,10 @@ export function verdictOf(attempts: Attempt[]): RunLog["verdict"] {
 export async function stepRun(runlog: RunLog, log?: Log): Promise<RunLog> {
   if (runlog.verdict !== "running") return runlog;
   const source = loadSource(runlog.source.kind);
-  let sandbox = await client().getSandbox(runlog.sandbox.vmId);
-  if (sandbox.status !== "running") {
-    sandbox = (await ensureGolden(log)).sandbox;
-  }
+  const golden = await resumeGolden();
+  if (!golden) throw new Error("the validator VM is not available");
+  const sandbox = golden.sandbox;
+  log?.(`attempt ${runlog.attempts.length + 1} on ${sandbox.id}`);
   const a = await attempt(sandbox, runlog.runId, source, runlog.attempts);
   const attempts = [...runlog.attempts, a];
   const blocked = a.run?.networkBlocked ? [...runlog.sandbox.blocked, { host: "outbound", attempt: a.n, by: "map.py" as const }] : runlog.sandbox.blocked;
