@@ -1,0 +1,15 @@
+{
+  "note": "Declared configuration: the seller details and Peppol IDs a converter may use that the source itself does not carry. Belgian companies, VAT numbers, Peppol IDs and IBANs here are fictional (valid formats); the CII entries reuse identifiers printed in the official CEN example.",
+  "stripe": {
+    "seller": { "name": "Atelier Lumière BV", "vat": "BE0847193149", "endpoint": { "scheme": "0208", "id": "0847193149" }, "iban": "BE71096123456769", "street": "Rue de Flandre 12", "postcode": "1000", "city": "Brussel", "country": "BE" },
+    "buyer": { "endpoint": { "scheme": "0208", "id": "0764221032" }, "buyer_reference": "KAAI-TAPROOM-OPENING" }
+  },
+  "cii": {
+    "seller": { "endpoint": { "scheme": "9930", "id": "DE1111111" } },
+    "buyer": { "endpoint": { "scheme": "0088", "id": "1111111111" }, "buyer_reference": "SUBSCR571" }
+  },
+  "csv": {
+    "seller": { "name": "Traiteur Vanneste BV", "vat": "BE0731602803", "endpoint": { "scheme": "0208", "id": "0731602803" }, "iban": "BE68539007547034", "street": "Groentemarkt 7", "postcode": "9000", "city": "Gent", "country": "BE" },
+    "buyer": { "endpoint": { "scheme": "0208", "id": "0649375210" }, "buyer_reference": "PO-2026-118" }
+  }
+}
