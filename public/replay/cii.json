@@ -344,10 +344,13 @@
           }
         ],
         "warnings": [],
-        "fixed": [],
-        "new": [
-          "BR-S-08"
-        ]
+        "fixed": [
+          "BR-45",
+          "BR-46",
+          "BR-CO-17",
+          "BR-S-09"
+        ],
+        "new": []
       },
       "reconciliation": null,
       "provenance": null,

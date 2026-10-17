@@ -1,26 +1,344 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --ff-display: var(--font-franklin), "Libre Franklin", system-ui, sans-serif;
+  --ff-body: var(--font-franklin), "Libre Franklin", system-ui, sans-serif;
+  --ff-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+  --canvas: #edf1e7; /* columnar-pad workpaper */
+  --surface-1: #ffffff; /* sheets: release sheet, sponsor panels, selected attempt */
+  --surface-2: #e1e8da; /* hover, tonal buttons, segmented track, banners */
+  --surface-sunken: #e4e9df; /* code, diff and XML wells */
+  --line: #c5d0bc; /* pad-green column rules and gate dividers */
+  --line-input: #6b7768;
+  --ink: #1a1f1b; /* graphite */
+  --ink-muted: #4f5a52;
+  --accent: #1a1f1b;
+  --accent-ink: #f5f8f1;
+  --accent-hover: #2c332e;
+  --accent-press: #3a423c;
+  --accent-container: var(--surface-2);
+  --focus: var(--ink);
+  --success: #1b6a3f;
+  --success-container: #e2efe4;
+  --warning: #7a5400;
+  --danger: #a3241b;
+  --danger-container: color-mix(in oklch, var(--danger) 10%, var(--surface-1));
+  --data-hold: #bc2a1c; /* red pencil */
+  --data-hold-container: #f8e7e4;
+  --data-tick: var(--success);
+  --data-count: var(--ink);
+  --data-add: #d9ecd5;
+  --data-del: #f4dbd6;
+  --r-sm: 3px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --shadow-overlay: 0 4px 8px rgb(26 31 27 / 0.06), 0 16px 40px -8px rgb(26 31 27 / 0.22);
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-base: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-num: 80px;
+  --text-landing: 40px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --dur-press: 120ms;
+  --dur-hover: 150ms;
+  --dur-pop: 200ms;
+  --dur-draw: 450ms;
+}
+[data-record] {
+  --text-base: 16px;
+  --text-num: 88px;
+}
+@media (max-width: 1279px) {
+  :root {
+    --text-num: 56px;
+  }
+}
+@media (max-width: 1023px) {
+  :root {
+    --text-num: 32px;
+    --text-xl: 17px;
+    --text-2xl: 22px;
+    --text-landing: 30px;
+  }
+}
+[hidden] {
+  display: none !important;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-input: var(--line-input);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-success: var(--success);
+  --color-success-container: var(--success-container);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-hold: var(--data-hold);
+  --color-hold-container: var(--data-hold-container);
+  --color-add: var(--data-add);
+  --color-del: var(--data-del);
+  --font-display: var(--ff-display);
+  --font-sans: var(--ff-body);
+  --font-mono: var(--ff-mono);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html {
+  background: var(--canvas);
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--ff-body);
+  font-size: var(--text-base);
+  line-height: 1.45;
+  overflow-x: hidden;
+}
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* the one filled control */
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  transition: background-color var(--dur-hover) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+.btn-primary:active {
+  background: var(--accent-press);
+  transform: scale(0.97);
+}
+.btn-primary[aria-disabled="true"] {
+  background: var(--ink-muted);
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-tonal {
+  background: var(--surface-2);
+  color: var(--ink);
+  transition: background-color var(--dur-hover) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.btn-tonal:hover {
+  background: color-mix(in oklch, var(--ink) 8%, var(--surface-2));
+}
+.btn-tonal:active {
+  transform: scale(0.97);
+}
+.btn-tonal[aria-disabled="true"] {
+  color: var(--ink-muted);
+  cursor: not-allowed;
+  transform: none;
+}
+.link {
+  text-decoration-line: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.toplink {
+  color: var(--ink-muted);
+  transition: color var(--dur-hover) var(--ease-out);
+}
+.toplink:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* wordmark on the accountant's double rule */
+.wordmark {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 6px;
+}
+.wordmark::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+}
+
+/* red-pencil ring and audit tick: draw on */
+.draw path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw var(--dur-draw) var(--ease-out-quint) forwards;
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* the red-pencil ring sweeps on like a pencil stroke (non-scaling stroke, so no pathLength dash) */
+.ring-reveal {
+  animation: ringin var(--dur-draw) var(--ease-out-quint) both;
+}
+@keyframes ringin {
+  from {
+    clip-path: inset(-30% 100% -30% -30%);
+  }
+  to {
+    clip-path: inset(-30% -30% -30% -30%);
+  }
+}
+.fade-in {
+  animation: fadein 150ms var(--ease-out) both;
+}
+.rise-in {
+  animation: risein 200ms var(--ease-out) both;
+}
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes risein {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.bar {
+  transform-origin: left center;
+  animation: barin 200ms var(--ease-out) both;
+}
+@keyframes barin {
+  from {
+    transform: scaleX(0);
+  }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--ink) 40%, var(--ink-muted) 50%, var(--ink) 60%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 1.6s linear infinite;
+}
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .draw path {
+    stroke-dashoffset: 0;
+    animation: fadein 150ms linear both;
+  }
+  .ring-reveal {
+    animation: fadein 150ms linear both;
+  }
+  .shimmer {
+    animation: none;
+    color: var(--ink);
+    background: none;
+  }
+  .bar,
+  .rise-in,
+  .fade-in {
+    animation: none;
+  }
+  .btn-primary:active,
+  .btn-tonal:active {
+    transform: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* code wells scroll inside themselves */
+.well {
+  background: var(--surface-sunken);
+  border-radius: var(--r-md);
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  line-height: 20px;
+  overflow: auto;
+  max-width: 100%;
+}
+.well pre {
+  margin: 0;
+  white-space: pre;
+}
+
+/* rule rows use <details> */
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details[open] > summary .caret {
+  transform: rotate(90deg);
+}
+.caret {
+  transition: transform 180ms var(--ease-out);
+}
+
+/* how-to-judge popover */
+[popover].judge {
+  position: fixed;
+  inset: 52px 16px auto auto;
+  margin: 0;
+  width: min(380px, calc(100vw - 32px));
+  background: var(--surface-1);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-overlay);
+  padding: 20px;
+}
+@media (min-width: 1024px) {
+  [popover].judge {
+    inset: 52px 32px auto auto;
+  }
+}
+[popover].judge:popover-open {
+  animation: popin 200ms var(--ease-out) both;
+  transform-origin: top right;
+}
+@keyframes popin {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* tie-out: the columnar pad */
+.tieout th,
+.tieout td {
+  border-left: 1px solid var(--line);
+}
+.tieout th:first-child,
+.tieout td:first-child {
+  border-left: 0;
 }
