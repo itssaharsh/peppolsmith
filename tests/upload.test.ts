@@ -28,6 +28,12 @@ describe("uploaded invoices", () => {
     expect(() => sourceFromUpload("x".repeat(MAX_UPLOAD_BYTES + 1))).toThrow(/larger than/);
   });
 
+  it("refuses an invoice whose own figures don't add up", () => {
+    const d = JSON.parse(example("stripe-invoice.json"));
+    d.amount_due += 10000;
+    expect(() => sourceFromUpload(JSON.stringify(d))).toThrow(/doesn't add up/);
+  });
+
   it("signs the uploaded text: swapping the file breaks the signature", () => {
     process.env.RUN_SIGNING_SECRET = "test-secret";
     const raw = example("billing-export.csv");

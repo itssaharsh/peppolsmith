@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { XMLParser } from "fast-xml-parser";
 import partnersFile from "../../config/trading-partners.json";
-import { type Cents, toCents, fromEuropean } from "./money";
+import { type Cents, toCents, fromEuropean, formatEUR } from "./money";
 
 export type SourceKind = "stripe" | "cii" | "csv";
 export const SOURCE_KINDS: SourceKind[] = ["stripe", "cii", "csv"];
@@ -181,6 +181,13 @@ export function sourceFromUpload(raw: string): Source {
   const c = parsed.contract;
   if (!c.lines.length || !Number.isFinite(c.payable) || c.lines.some((l) => !Number.isFinite(l.grossNet))) {
     throw new Error(`This looks like ${what}, but its invoice lines or totals are missing or aren't numbers.`);
+  }
+  // an invoice that doesn't add up can't become a faithful e-invoice: the converter would have to invent the difference
+  const sum = c.netTotal + c.vatTotal;
+  if (Math.abs(sum - c.payable) > 1) {
+    throw new Error(
+      `This invoice doesn't add up: its net total ${formatEUR(c.netTotal)} plus VAT ${formatEUR(c.vatTotal)} is ${formatEUR(sum)}, but it says ${formatEUR(c.payable)} is due. Fix the invoice first; Peppolsmith won't paper over the difference.`,
+    );
   }
   return {
     kind,
