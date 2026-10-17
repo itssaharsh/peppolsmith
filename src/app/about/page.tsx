@@ -249,10 +249,11 @@ export default function AboutPage() {
               second spreadsheet export. Both were approved in about 1.7 s with 0 AI calls.
             </li>
             <li>
-              <span className="font-semibold">Honest limits of the evidence.</span> Across our 21 test runs, all 14 e-invoices that passed the
-              official rules also matched their original, so the extra checks never caught a real AI slip. The planted bugs are the evidence that they
-              would. Results also vary from run to run: the CEN example reached approval within 6 tries in 6 of 8 runs, the Stripe invoice in 6 of
-              7, the spreadsheet export in 1 of 1. Nothing was ever released without all three checks passing.
+              <span className="font-semibold">Honest limits of the evidence.</span> Across our 47 test runs, all 35 e-invoices that passed the
+              official rules also matched their original, so the extra checks never caught a real AI slip; the planted bugs are the evidence that
+              they would. Results vary from run to run: Stripe invoices reached approval in 13 of 14 runs, CSV exports in 6 of 6, PDFs in 6 of 6,
+              and the hard official CEN example in 13 of 24 (most misses came before we improved the AI&apos;s feedback). Nothing was ever released
+              without all three checks passing.
             </li>
           </ul>
         </Section>

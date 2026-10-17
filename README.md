@@ -45,15 +45,18 @@ Peppol IDs and seller details that an invoice doesn't carry come from the declar
 | Official CEN example `CII_business_example_02.xml` (CII, not UBL) | 6, 5, no XML (crash), 1, **0: Certified** | 5 | $0.030 | 66 s |
 | Stripe test-mode invoice `in_1URdBAFnAoogkMUBUiEf42JL` | malformed XML, 2, **0: Certified** | 3 | $0.022 | 54 s |
 | Billing-app CSV export (European decimals, two VAT rates) | **0: Certified** at attempt 1 | 1 | $0.005 | 17 s |
+| PDF invoice `public/examples/invoice.pdf` (read by the AI, every number verified with no AI) | 5, **0: Certified** | 3 (1 to read the PDF, 2 for the converter) | $0.013 | 40 s |
 
 - **Try to fool the gates.** We planted three converter bugs into the certified XML: amounts in cents treated as euros, a dropped document-level discount, and an invented buyer Peppol ID with a valid checksum. Each planted XML passes every official rule (0 failed), and each one is held by reconciliation or provenance. The page runs these live.
 - **Model-off conversion.** The certified converters ran on a second Stripe test invoice (`in_1URda7FnAoogkMUB0KkjLgNg`) and a second CSV export. Both certified in about 1.7 s with 0 model calls.
 - **Honest limits of the evidence:**
-  - Across our 21 terminal runs, all 14 XMLs that passed the official rules also tied to their source. The gates never caught a real model slip; the planted bugs are the evidence that they would.
-  - Convergence varies from run to run, as you'd expect from a model. These are all our 17 Oct runs since the fix feedback included the official XPath tests and the model's own XML:
-    - CII example: 6 of 8 reached Certified within 6 attempts.
-    - Stripe test invoice: 6 of 7 (including runs through the deployed page). The one that didn't stalled on a line-arithmetic rule (PEPPOL-EN16931-R120). That's why the fix prompt now adds a plain note for rules models often misread; every run since has certified.
-    - CSV export: 1 of 1.
+  - Across our 47 terminal runs on 17 Oct, all 35 XMLs that passed the official rules also tied to their source. The gates never caught a real model slip; the planted bugs are the evidence that they would. One test did find a gap: an uploaded invoice whose own amount due was inflated got through when the model used a 100.00 rounding amount. Uploads whose figures don't add up are now refused before any AI work.
+  - Convergence varies from run to run, as you'd expect from a model. These are all 47 terminal runs on 17 Oct, including runs made before the feedback improvements:
+    - Stripe invoices (sample and uploads): 13 of 14 reached Certified.
+    - CSV exports: 6 of 6.
+    - PDF invoices: 3 of 3, plus 3 of 3 through the live page.
+    - The official CEN CII example and its upload variant: 13 of 24. This is the hard one (a different standard and German national rules), and most misses came before the model was given the rules' XPath tests, its own XML and a map of the source's element paths.
+    - The average model cost was $0.028 per run.
     - Nothing was ever released without all three checks passing.
 
 ## How it uses the sponsors
