@@ -242,7 +242,9 @@ export function Bench() {
               ? "A live run is already going. Live runs go one at a time; try again in a few minutes, or watch a recorded example."
               : start.status === 429 || start.data.reason === "cap"
                 ? "Today's live runs are used up. The recorded examples still work."
-                : `Couldn't start: ${start.data.error ?? `the server answered ${start.status}`}`,
+                : start.status === 400 && start.data.error
+                  ? start.data.error // a refusal with its reason, not a crash
+                  : `Couldn't start: ${start.data.error ?? `the server answered ${start.status}`}`,
           );
           return;
         }
