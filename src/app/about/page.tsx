@@ -42,7 +42,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
 const STEPS = [
   {
     title: "You give it an invoice",
-    body: "One invoice from your billing tool, as it already comes out: a Stripe invoice, a spreadsheet export or another invoice format.",
+    body: "One invoice as you already have it: a PDF, a Stripe invoice, a spreadsheet export or a CII e-invoice. For a PDF, every number the AI reads is checked against the PDF with no AI.",
   },
   {
     title: "An AI writes a converter",

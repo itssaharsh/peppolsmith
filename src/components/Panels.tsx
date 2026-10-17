@@ -40,6 +40,54 @@ function Copy({ text }: { text: string }) {
   );
 }
 
+type Probe = { blocked: boolean; detail: string; ms: number; egress: string[]; resumeMs: number | null; error?: string };
+
+/** Runs the real test in the VM: the AI's user tries to reach the internet; the host-side rule must stop it. */
+function NetworkTest() {
+  const [state, setState] = useState<{ loading: boolean; result?: Probe; error?: string }>({ loading: false });
+  const run = async () => {
+    setState({ loading: true });
+    try {
+      const res = await fetch("/api/probe", { method: "POST" });
+      const data = (await res.json()) as Probe;
+      setState(res.ok ? { loading: false, result: data } : { loading: false, error: data.error ?? `The server answered ${res.status}.` });
+    } catch (e) {
+      setState({ loading: false, error: (e as Error).message });
+    }
+  };
+  const r = state.result;
+  return (
+    <span className="mt-2 block">
+      <button
+        type="button"
+        onClick={state.loading ? undefined : run}
+        aria-disabled={state.loading || undefined}
+        className="inline-flex h-9 items-center rounded-md bg-surface-2 px-3 text-[13px] font-semibold hover:bg-line/60"
+      >
+        {state.loading ? "Testing from inside the VM…" : "Test the network lock"}
+      </button>
+      {r ? (
+        <span className="mt-1.5 block text-[13px]" role="status">
+          {r.blocked ? (
+            <>
+              <span className="font-semibold text-success">Blocked.</span> From inside the VM, as the same unprivileged user that runs the
+              AI&apos;s code, a request to <span className="font-mono">https://pypi.org</span> failed ({secs(r.ms)}
+              {r.resumeMs != null ? `, after waking the paused VM in ${secs(r.resumeMs)}` : ""}).
+              {r.detail ? <span className="block break-all font-mono text-[12px] text-ink-muted">{r.detail}</span> : null}
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-hold">Not blocked:</span> the request reached the internet. The lock is not in place right
+              now.
+            </>
+          )}
+        </span>
+      ) : null}
+      {state.error ? <span className="mt-1.5 block text-[13px]">{state.error}</span> : null}
+    </span>
+  );
+}
+
 export function CreateOSPanel({ run, health }: { run: RunLog | null; health: Health | null }) {
   const sb = run?.sandbox;
   const blocked = sb?.blocked ?? [];
@@ -64,7 +112,10 @@ export function CreateOSPanel({ run, health }: { run: RunLog | null; health: Hea
             <span className="text-ink-muted">No run loaded.</span>
           )}
         </Row>
-        <Row label="Network">Off while the AI&apos;s code runs. One deny-by-default egress rule, set on the host, outside the VM.</Row>
+        <Row label="Network">
+          Off while the AI&apos;s code runs. One deny-by-default egress rule, set on the host, outside the VM.
+          <NetworkTest />
+        </Row>
         <Row label="Blocked">
           {blocked.length
             ? `${blocked.length} ${blocked.length === 1 ? "connection" : "connections"} this run: ${blocked

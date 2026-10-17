@@ -60,7 +60,7 @@ Peppol IDs and seller details that an invoice doesn't carry come from the declar
 
 **CreateOS Sandbox**:
 - **Where the model's code runs:** one `devbox:1` VM (1 vCPU, 1 GB) holds the validator: SaxonC-HE, the CEN XSLT and the compiled Peppol Schematron.
-- **Network off:** a deny-by-default egress rule is set from the host, outside the VM, so `map.py` can't download anything.
+- **Network off:** a deny-by-default egress rule is set from the host, outside the VM, so `map.py` can't download anything. Press **Test the network lock** on the page: a request from inside the VM, as the AI's user, fails live.
 - **Each run gets its own directory.** `map.py` runs as `nobody`; the orchestrator, not `map.py`, runs the validator after a `sha256sum -c MANIFEST` check.
 - **Pause and resume:** the VM auto-pauses after 10 minutes and resumes in about 2.5 s with the validator already installed.
 - **Not used:** fork, because the Free plan allows one sandbox.

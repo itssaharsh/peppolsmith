@@ -151,12 +151,17 @@ export function ChangePane({ run, attempt }: { run: RunLog; attempt: Attempt }) 
                 view === v ? "bg-surface-1 font-semibold text-ink shadow-[0_0_0_1px_var(--line-input)]" : "text-ink-muted hover:text-ink"
               }`}
             >
-              {v === "change" ? "Code change" : v === "source" ? "Original" : "E-invoice"}
+              {v === "change" ? "Code change" : v === "source" ? (run.source.fromPdf ? "Read from PDF" : "Original") : "E-invoice"}
             </button>
           ))}
         </div>
       </div>
       <p className="mt-1.5 text-[14px]">{summary}</p>
+      {view === "source" && run.source.fromPdf ? (
+        <p className="mt-1 text-[13px] text-ink-muted">
+          What the AI read from your PDF, after every amount and ID was checked against the PDF with no AI. The converter works from this.
+        </p>
+      ) : null}
       {attempt.run?.networkBlocked ? (
         <p className="mt-2 flex items-start gap-2 rounded-md bg-surface-2 px-3 py-2.5 text-[14px]">
           <ProhibitIcon size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
