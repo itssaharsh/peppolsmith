@@ -55,7 +55,11 @@ export function Upload({ starting, error, blockedReason, onConvert, onExample }:
     if (!f) return;
     if (!/\.(json|csv|xml)$/i.test(f.name)) {
       setFile(null);
-      setReadError(`${f.name} isn't a .json, .csv or .xml file.`);
+      setReadError(
+        /\.(pdf|png|jpe?g|docx?)$/i.test(f.name)
+          ? `${f.name} is a picture of an invoice. Peppolsmith converts the invoice data behind it: export it from your billing tool instead (Stripe: the invoice JSON; most billing apps: a CSV export).`
+          : `${f.name} isn't a .json, .csv or .xml file.`,
+      );
       return;
     }
     if (f.size > MAX_BYTES) {
@@ -86,11 +90,12 @@ export function Upload({ starting, error, blockedReason, onConvert, onExample }:
     <section aria-labelledby="upload-h" className="mx-auto mt-6 max-w-[880px] lg:mt-10" data-region="upload">
       <div className="rounded-lg border border-line bg-surface-1 px-5 py-6 sm:px-8 sm:py-8">
         <h1 id="upload-h" className="font-display font-extrabold leading-[1.1] tracking-[-0.02em]" style={{ fontSize: "var(--text-landing)" }}>
-          Turn your invoice into an EU e-invoice.
+          Turn your billing data into EU e-invoices.
         </h1>
         <p className="mt-3 max-w-[68ch] text-[15px] leading-6 sm:text-[16px]">
-          Upload an invoice from your billing tool. An AI writes a converter for that format, runs it in a locked sandbox, and fixes it until the
-          official EU checker finds 0 errors. You get a Peppol e-invoice to download, released only if its totals match your invoice.
+          Your billing tool already holds every invoice as data, but rarely exports it in the EU&apos;s Peppol format. Upload one invoice
+          export: an AI writes a converter for that format, runs it in a locked sandbox, and fixes it until the official EU checker finds 0
+          errors. You get a Peppol e-invoice, released only if its totals match your data, and a converter that handles the next ones with no AI.
         </p>
 
         {!paste ? (
@@ -106,8 +111,9 @@ export function Upload({ starting, error, blockedReason, onConvert, onExample }:
             }`}
           >
             <FileArrowUpIcon size={36} className="text-ink-muted" aria-hidden />
-            <p className="text-[15px] font-semibold">Drop an invoice file here</p>
-            <p className="text-[13px] text-ink-muted">.json, .csv or .xml, up to 100 KB</p>
+            <p className="text-[15px] font-semibold">Drop an invoice export here</p>
+            <p className="text-[13px] text-ink-muted">A Stripe invoice (.json), a billing CSV export (.csv) or a CII e-invoice (.xml), up to 100 KB</p>
+            <p className="max-w-[52ch] text-[12px] text-ink-muted">Not PDFs: a PDF is a picture of an invoice. Peppolsmith converts the data behind it, the way your billing tool exports it.</p>
             <input
               ref={inputRef}
               type="file"
