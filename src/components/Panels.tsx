@@ -1,6 +1,7 @@
 "use client";
 
 import { CopyIcon } from "@phosphor-icons/react/dist/ssr";
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import type { RunLog } from "@/lib/runlog";
 import { GITHUB_URL, pdt, pdtTime, runModel, secs, usd } from "@/lib/client/format";
@@ -45,7 +46,7 @@ export function CreateOSPanel({ run, health }: { run: RunLog | null; health: Hea
   return (
     <section className="rounded-lg border border-line bg-surface-1 px-5 py-5 sm:px-6" aria-labelledby="createos-h">
       <h2 id="createos-h" className="text-[15px] font-bold">
-        CreateOS Sandbox: where the model&apos;s code runs
+        Where the AI&apos;s code runs (CreateOS)
       </h2>
       <dl className="mt-3">
         <Row label="VM">
@@ -63,7 +64,7 @@ export function CreateOSPanel({ run, health }: { run: RunLog | null; health: Hea
             <span className="text-ink-muted">No run loaded.</span>
           )}
         </Row>
-        <Row label="Network">Off while the model&apos;s code runs. One deny-by-default egress rule, set on the host, outside the VM.</Row>
+        <Row label="Network">Off while the AI&apos;s code runs. One deny-by-default egress rule, set on the host, outside the VM.</Row>
         <Row label="Blocked">
           {blocked.length
             ? `${blocked.length} ${blocked.length === 1 ? "connection" : "connections"} this run: ${blocked
@@ -114,7 +115,7 @@ export function StripePanel({ run }: { run: RunLog | null }) {
   return (
     <section className="rounded-lg border border-line bg-surface-1 px-5 py-5 sm:px-6" aria-labelledby="stripe-h">
       <h2 id="stripe-h" className="text-[15px] font-bold">
-        Stripe Projects: how this stack was set up
+        How the stack was set up (Stripe Projects)
       </h2>
       <p className="mt-1 text-[14px]">
         Provisioned from the Stripe CLI with <span className="font-mono text-[13px]">stripe projects add</span>:
@@ -129,6 +130,9 @@ export function StripePanel({ run }: { run: RunLog | null }) {
       </dl>
       <dl className="mt-2 border-t border-line pt-1">
         <Row label="Invoice source">The Stripe test invoice was created with the Stripe CLI in test mode.</Row>
+        <Row label="AI model">
+          {m.name}, through {m.provider}. Falls back to DeepSeek-V3.2 on Featherless, then free OpenRouter models.
+        </Row>
         {run ? (
           <Row label="Model cost">
             <span className="tnum">
@@ -149,87 +153,31 @@ export function JudgePopover({ first, attempts }: { first: number | null; attemp
       <ol className="mt-3 list-decimal space-y-2 pl-5 text-[14px]">
         <li>
           {first !== null && attempts > 1
-            ? `Read the attempts: failed official rules fall from ${first} to 0. Click any attempt to see its rules and the model's code change.`
-            : "Read the attempts: each column is one try at map.py and the official rules it failed. Click an attempt to see its rules and the model's code."}
+            ? `Read the tries: the EU checker's errors fall from ${first} to 0. Click any try to see the errors and the AI's code change.`
+            : "Read the tries: each column is one try by the AI and the errors the EU checker found. Click a try to see the errors and the AI's code."}
         </li>
-        <li>Open Try to fool the gates and press Drop the discount: the official rules pass, and Peppolsmith holds it.</li>
-        <li>Press Convert a new invoice with the model off: the certified converter runs again with 0 model calls.</li>
-        <li>Press Run live to watch the agent write, run and fix its code (a few minutes).</li>
-        <li>Download the XML and check it in any public Peppol validator.</li>
+        <li>Pick Stripe invoice, open Try to fool the checks and press Drop the discount: every EU rule passes, and Peppolsmith holds it back.</li>
+        <li>Press Convert another invoice, AI off: the approved converter runs again with 0 AI calls.</li>
+        <li>Press Run live to watch the AI write, run and fix its code (a few minutes).</li>
+        <li>Download the e-invoice and check it in any public Peppol validator.</li>
       </ol>
     </div>
   );
 }
 
-export function About({ run }: { run: RunLog | null }) {
-  const proofs: { fig: string; line: string }[] = [];
-  if (run && run.verdict === "certified" && run.attempts.length > 1) {
-    const firstWithRules = run.attempts.find((a) => a.rules);
-    const first = firstWithRules?.rules?.failed.length;
-    if (first && first > 0)
-      proofs.push({
-        fig: `${first} to 0`,
-        line: `Failed official rules over ${run.attempts.length} attempts on the ${run.source.kind === "cii" ? "official CEN example invoice" : run.source.kind === "stripe" ? "Stripe test-mode invoice" : "CSV export"}, each fix shown as a code change.`,
-      });
-  }
-  if (run && run.verdict === "certified") {
-    const last = run.attempts[run.attempts.length - 1];
-    if (last?.provenance)
-      proofs.push({
-        fig: `${last.provenance.traced} of ${last.provenance.total}`,
-        line: "Party IDs in the certified XML traced back to the source or the declared settings, by a check the model can't edit.",
-      });
-    proofs.push({
-      fig: usd(run.model.costUsd),
-      line: `Model cost of the recorded run, from source to certified XML, in ${run.attempts.length} ${run.attempts.length === 1 ? "attempt" : "attempts"}.`,
-    });
-  }
+export function AboutCard() {
   return (
-    <section id="about" className="mx-auto max-w-[1080px] scroll-mt-6 py-16" aria-labelledby="about-h">
-      <p className="max-w-[64ch] text-[15px] text-ink-muted">
-        The official validator checks that an invoice agrees with itself. Peppolsmith also checks that it agrees with what you billed.
+    <section id="about" className="mx-auto mt-14 max-w-[1080px] scroll-mt-6 rounded-lg border border-line bg-surface-1 px-5 py-6 sm:px-8" aria-labelledby="about-h">
+      <p className="text-[14px] text-ink-muted">
+        The official EU checker only checks that an invoice agrees with itself. Peppolsmith also checks that it agrees with what you billed.
       </p>
-      <h2 id="about-h" className="mt-3 font-display font-extrabold leading-[1.1] tracking-[-0.02em]" style={{ fontSize: "var(--text-landing)" }}>
-        Peppol e-invoices from the billing data you already have
+      <h2 id="about-h" className="mt-2 font-display text-[24px] font-extrabold leading-tight tracking-[-0.02em]">
+        New to e-invoices? Read what Peppolsmith does, in plain words.
       </h2>
-      <p className="mt-4 max-w-[64ch] text-[18px] leading-7">
-        An agent writes a converter for your invoice data and fixes it inside a locked CreateOS sandbox until the official EU rules pass and every
-        total matches what you billed.
-      </p>
-      {proofs.length ? (
-        <div className="mt-10 grid gap-8 sm:grid-cols-3">
-          {proofs.map((p) => (
-            <div key={p.fig}>
-              <p className="text-[32px] font-extrabold leading-none tnum">{p.fig}</p>
-              <p className="mt-2 text-[15px]">{p.line}</p>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      <h3 className="mt-12 text-[15px] font-bold">How it works</h3>
-      <ol className="mt-3 grid gap-4 text-[16px] sm:grid-cols-3">
-        {[
-          "Pick a source: a Stripe test invoice, an official CEN example or a CSV export.",
-          "The agent writes map.py, runs it in a CreateOS VM with the network off, reads which official rules fail and fixes its code.",
-          "Release needs three checks: the official rules, totals tied to the source, and every ID traced back to it.",
-        ].map((t, i) => (
-          <li key={i} className="flex gap-3">
-            <span className="font-extrabold tnum">{i + 1}</span>
-            <span>{t}</span>
-          </li>
-        ))}
-      </ol>
-      <div className="mt-10 space-y-2 text-[15px] text-ink-muted">
-        <p>Passing the CEN and Peppol rules is not delivery over the Peppol network, which needs an access point.</p>
-        <p>
-          The samples are labelled: one official CEN example, one Stripe test-mode invoice we created, and CSV rows we wrote in a home-grown billing
-          export layout. Seller and buyer IDs are fictional.
-        </p>
-      </div>
-      <p className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-[15px] font-medium">
-        <a href="#top" className="link">
-          Try it live
-        </a>
+      <p className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-[15px] font-medium">
+        <Link href="/about" className="link">
+          About Peppolsmith
+        </Link>
         <a href={GITHUB_URL} className="link" target="_blank" rel="noreferrer">
           Source on GitHub
         </a>

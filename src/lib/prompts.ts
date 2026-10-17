@@ -27,6 +27,7 @@ The program must:
 - compute money with decimal.Decimal and write every amount with exactly 2 decimals; amounts in cents must be divided by 100;
 - take every identifier (VAT IDs, Peppol endpoint IDs with their schemeID, IBAN, party names, buyer reference) from the source or from partners.json. Never invent an identifier;
 - keep the invoice faithful to the source: the same lines, the same discounts, the same VAT, and the amount due must equal what the source says was billed. A document-level discount becomes a document-level AllowanceCharge (ChargeIndicator false) with its own TaxCategory;
+- get the line arithmetic right: each InvoiceLine's LineExtensionAmount = InvoicedQuantity x PriceAmount (/ BaseQuantity) - its own line-level allowances + its own line-level charges. If the source spreads an invoice-wide discount over the lines, still put it in ONE document-level AllowanceCharge and keep the line amounts undiscounted;
 - use CustomizationID urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0 and ProfileID urn:fdc:peppol.eu:2017:poacc:billing:01:1.0;
 - follow the element order of the reference invoice exactly (UBL is order-sensitive), register the cac/cbc namespaces, and write the XML declaration.`;
 
@@ -46,6 +47,18 @@ export function firstPrompt(source: Source): string {
     `Write map.py.`,
   ].join("\n");
 }
+
+/** Plain explanations of rules models often misread, shown with the failure. */
+const RULE_NOTES: Record<string, string> = {
+  "PEPPOL-EN16931-R120": "Each line's LineExtensionAmount must equal InvoicedQuantity x PriceAmount (/ BaseQuantity) minus that line's own AllowanceCharge amounts plus its charges. Do not put a discount into the line amount without a line-level AllowanceCharge; an invoice-wide discount belongs in one document-level AllowanceCharge.",
+  "BR-CO-10": "LegalMonetaryTotal/LineExtensionAmount must equal the sum of all InvoiceLine/LineExtensionAmount values.",
+  "BR-CO-13": "TaxExclusiveAmount = sum of line amounts - document-level allowances + document-level charges.",
+  "BR-CO-15": "TaxInclusiveAmount = TaxExclusiveAmount + the TaxTotal TaxAmount (in the document currency).",
+  "BR-CO-16": "PayableAmount = TaxInclusiveAmount - PrepaidAmount + PayableRoundingAmount.",
+  "BR-S-08": "For each standard-rated VAT rate, TaxSubtotal/TaxableAmount = sum of that rate's line amounts - document allowances of that rate + document charges of that rate.",
+  "BR-06": "The seller name goes in AccountingSupplierParty/Party/PartyLegalEntity/RegistrationName.",
+  "BR-07": "The buyer name goes in AccountingCustomerParty/Party/PartyLegalEntity/RegistrationName.",
+};
 
 const problemKey = (a: Attempt | undefined) => (a ? a.error ?? (a.rules?.failed.map((f) => f.id).sort().join(",") || a.outcome) : "");
 
@@ -67,7 +80,7 @@ export function fixPrompt(source: Source, last: Attempt, stuck = false): string 
   if (last.rules?.error) lines.push(`- ${last.rules.error}`);
   if (last.rules && last.rules.failed.length) {
     lines.push(`- ${last.rules.failed.length} official rules failed (rule id: message):`);
-    for (const f of last.rules.failed.slice(0, 15)) lines.push(`  ${f.id} (${f.set}${f.count > 1 ? `, x${f.count}` : ""}): ${f.message}${f.location ? `\n    context: ${f.location}` : ""}${f.test ? `\n    the rule's XPath test (must be true): ${f.test}` : ""}`);
+    for (const f of last.rules.failed.slice(0, 15)) lines.push(`  ${f.id} (${f.set}${f.count > 1 ? `, x${f.count}` : ""}): ${f.message}${f.location ? `\n    context: ${f.location}` : ""}${f.test ? `\n    the rule's XPath test (must be true): ${f.test}` : ""}${RULE_NOTES[f.id] ? `\n    note: ${RULE_NOTES[f.id]}` : ""}`);
   }
   if (last.reconciliation) {
     const bad = last.reconciliation.rows.filter((r) => !r.ties);

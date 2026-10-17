@@ -1,13 +1,13 @@
 "use client";
 
 import { CaretDownIcon, PlayIcon, WarningIcon } from "@phosphor-icons/react/dist/ssr";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Attempt, RunLog } from "@/lib/runlog";
 import {
   amountRow,
   clock,
   downloadBlob,
-  GITHUB_URL,
   isSource,
   money,
   pdt,
@@ -15,14 +15,14 @@ import {
   sha256Hex,
   SOURCES,
   sourceLabel,
-  usd,
   type SourceKey,
 } from "@/lib/client/format";
 import { buildPreview, isPreview, type PreviewState } from "@/lib/client/fixtures";
 import { Tally, outcomeText } from "./Tally";
 import { ChangePane, Checklist, RulesList } from "./Detail";
 import { Sheet, type ConvertResult, type FoolResult } from "./Sheet";
-import { About, CreateOSPanel, Footer, JudgePopover, StripePanel, type Health } from "./Panels";
+import { AboutCard, CreateOSPanel, Footer, JudgePopover, StripePanel, type Health } from "./Panels";
+import { TopBar } from "./TopBar";
 
 type Live = {
   source: SourceKey;
@@ -50,15 +50,15 @@ async function postJson<T>(url: string, body: unknown, signal?: AbortSignal): Pr
 }
 
 function announceFor(a: Attempt): string {
-  if (a.outcome === "certified") return "Certified. Downloads are ready.";
+  if (a.outcome === "certified") return "Ready to send. Downloads are ready.";
   if (a.outcome === "held_reconciliation") {
     const r = amountRow(a);
-    if (r && r.xml !== null && r.source !== null) return `Held: the XML says ${money(r.xml)}; billed ${money(r.source)}.`;
-    return "Held: the totals don't tie.";
+    if (r && r.xml !== null && r.source !== null) return `Held back: the amount due is ${money(r.xml)} and the bill says ${money(r.source)}.`;
+    return "Held back: the totals don't match the bill.";
   }
-  if (a.outcome === "held_provenance") return "Held: an ID in the XML isn't in the source.";
+  if (a.outcome === "held_provenance") return "Held back: an ID isn't from the invoice.";
   const n = a.rules?.failed.length;
-  return `Attempt ${a.n} finished: ${n ?? "no"} official rules failing.`;
+  return `Try ${a.n} finished: ${n ?? "no"} errors left.`;
 }
 
 export function Bench() {
@@ -76,6 +76,9 @@ export function Bench() {
   const [now, setNow] = useState(0);
   const [announce, setAnnounce] = useState("");
   const [phoneChange, setPhoneChange] = useState(false);
+  // our own live run holds the server's lock; ignore health.busy while it runs and for a short while after
+  const [suppressBusy, setSuppressBusy] = useState(false);
+  const loadHealthRef = useRef<() => void>(() => undefined);
   const abortRef = useRef<AbortController | null>(null);
   const stopRef = useRef(false);
 
@@ -125,6 +128,7 @@ export function Bench() {
           if (alive && h && typeof h.vmId === "string") setHealth(h);
         })
         .catch(() => undefined);
+    loadHealthRef.current = () => void load();
     load();
     const t = setInterval(load, 20000);
     return () => {
@@ -194,6 +198,7 @@ export function Bench() {
     const src = source;
     setLive({ source: src, run: null, phase: "starting", startedAt: t0, stepStartedAt: t0 });
     setAnnounce("Live run starting.");
+    setSuppressBusy(true);
     try {
       const start = await postJson<RunLog>("/api/run", { source: src }, ctrl.signal);
       if (!start.ok) {
@@ -214,7 +219,7 @@ export function Bench() {
         const step = await postJson<RunLog>("/api/step", { run: cur }, ctrl.signal);
         if (!step.ok || !step.data || !Array.isArray((step.data as RunLog).attempts)) {
           const msg = step.data?.error ?? `the server answered ${step.status}`;
-          setLive((l) => (l ? { ...l, run: cur, phase: "error", error: `The run stopped: ${msg}. The attempts so far are kept.` } : l));
+          setLive((l) => (l ? { ...l, run: cur, phase: "error", error: `The run stopped: ${msg}. The tries so far are kept.` } : l));
           return;
         }
         cur = step.data as RunLog;
@@ -226,12 +231,19 @@ export function Bench() {
       if (stopRef.current) setLive((l) => (l ? { ...l, phase: "stopped" } : l));
     } catch (e) {
       if (ctrl.signal.aborted) {
-        setLive((l) => (l ? { ...l, phase: l.run ? "stopped" : "error", error: l.run ? undefined : "Stopped before the first attempt." } : l));
+        setLive((l) => (l ? { ...l, phase: l.run ? "stopped" : "error", error: l.run ? undefined : "Stopped before the first try." } : l));
       } else {
         setLive((l) =>
-          l ? { ...l, phase: "error", error: `The connection dropped: ${(e as Error).message}. The attempts so far are kept.` } : l,
+          l ? { ...l, phase: "error", error: `The connection dropped: ${(e as Error).message}. The tries so far are kept.` } : l,
         );
       }
+    } finally {
+      // re-check the lock once our run has let go of it
+      setTimeout(() => loadHealthRef.current(), 2000);
+      setTimeout(() => {
+        setSuppressBusy(false);
+        loadHealthRef.current();
+      }, 15000);
     }
   }, [anyLiveRunning, source]);
 
@@ -359,7 +371,7 @@ export function Bench() {
 
   /* ---------- copy ---------- */
   const model = runModel(run ?? replay);
-  const busy = !!preview?.busy || banner?.kind === "busy" || (!!health?.busy && !liveRunning);
+  const busy = !!preview?.busy || banner?.kind === "busy" || (!!health?.busy && !anyLiveRunning && !suppressBusy);
   const capped = banner?.kind === "cap" || (!!health && health.dailyCap > 0 && health.runsToday >= health.dailyCap);
   const validatorDown = !liveHere && preview?.validatorDown ? { since: replay?.recordedAt ?? "" } : null;
   const blockedReason = busy
@@ -378,10 +390,10 @@ export function Bench() {
       runLabelRest = `, ${clock(now - liveHere.startedAt)} so far, in CreateOS VM ${liveHere.run?.sandbox.vmId ?? ""}`.replace(/ in CreateOS VM $/, "") + ".";
     } else if (liveHere.phase === "stopped") {
       runLabelLead = "Live run";
-      runLabelRest = `. Stopped after attempt ${liveHere.run?.attempts.length ?? 0}. Nothing was released.`;
+      runLabelRest = `. Stopped after try ${liveHere.run?.attempts.length ?? 0}. Nothing was released.`;
     } else if (liveHere.phase === "error") {
       runLabelLead = "Live run";
-      runLabelRest = `. Couldn't finish after attempt ${liveHere.run?.attempts.length ?? 0}.`;
+      runLabelRest = `. Couldn't finish after try ${liveHere.run?.attempts.length ?? 0}.`;
     } else {
       runLabelLead = "Live run";
       runLabelRest = `, ${pdt(liveHere.run?.recordedAt)}, in CreateOS VM ${liveHere.run?.sandbox.vmId ?? ""}.`;
@@ -394,14 +406,14 @@ export function Bench() {
         : `: ${previewState}. ${replay ? "Built from the recorded run." : "No recorded run for this source yet."}`;
   } else if (replay) {
     runLabelLead = "Replay";
-    runLabelRest = ` of a recorded run, ${pdt(replay.recordedAt)}, in CreateOS VM ${replay.sandbox.vmId}.`;
+    runLabelRest = ` of a real recorded run from ${pdt(replay.recordedAt)}. Press Run live to watch it happen now.`;
   } else if (ready) {
     runLabelLead = "No recording";
-    runLabelRest = " for this source yet.";
+    runLabelRest = " for this invoice yet.";
   }
 
   const runButtonLabel = liveRunning
-    ? `Running attempt ${(liveHere?.run?.attempts.length ?? 0) + 1}`
+    ? `Running try ${(liveHere?.run?.attempts.length ?? 0) + 1}`
     : liveHere && liveHere.phase !== "starting"
       ? "Run again"
       : "Run live";
@@ -414,22 +426,7 @@ export function Bench() {
 
   return (
     <div id="top" className="mx-auto w-full max-w-[1440px] px-4 lg:px-8">
-      <header className="flex h-12 items-center justify-between gap-4">
-        <a href="#top" className="wordmark text-[18px] font-extrabold leading-none tracking-[-0.03em]">
-          Peppolsmith
-        </a>
-        <nav className="flex items-center gap-4 text-[14px] font-medium lg:gap-6">
-          <button type="button" popoverTarget="judge" className="toplink">
-            How to judge<span className="hidden sm:inline"> this (90 s)</span>
-          </button>
-          <a href="#about" className="toplink hidden sm:inline">
-            How it works
-          </a>
-          <a href={GITHUB_URL} className="toplink hidden md:inline" target="_blank" rel="noreferrer">
-            Source on GitHub
-          </a>
-        </nav>
-      </header>
+      <TopBar page="home" />
       <JudgePopover first={firstCount} attempts={replayDefault?.attempts.length ?? 0} />
 
       <p className="sr-only" role="status" aria-live="polite">
@@ -440,12 +437,37 @@ export function Bench() {
         {/* left block */}
         <div className="contents lg:col-span-7 lg:flex lg:min-w-0 lg:flex-col lg:gap-7 xl:col-span-8">
           <div className="order-1 lg:order-none">
-            <h1 className="max-w-[62ch] font-semibold" style={{ fontSize: "var(--text-xl)", lineHeight: 1.38 }}>
-              Peppolsmith writes the Peppol e-invoice export your billing app is missing, and releases it only when the official EU rules pass and the
-              totals match what you billed.
+            <h1 className="max-w-[40ch] font-display font-extrabold tracking-[-0.02em]" style={{ fontSize: "var(--text-xl)", lineHeight: 1.25 }}>
+              Turn the invoices your billing tool already makes into <span className="whitespace-nowrap">EU e-invoices,</span> checked before they go
+              out.
             </h1>
-            <p className="mt-2 max-w-[62ch] text-[13px] leading-[18px] text-ink-muted lg:text-[14px] lg:leading-5">
-              A Peppol e-invoice is the structured XML invoice that Belgian businesses have had to exchange since 1 January 2026.
+            <p className="mt-1.5 max-w-[70ch] text-[13px] leading-[18px] text-ink-muted lg:text-[14px] lg:leading-5">
+              Since 1 January 2026 Belgian businesses must send Peppol e-invoices, and most billing tools can&apos;t make them.{" "}
+              <Link href="/about" className="link text-ink">
+                What is this?
+              </Link>
+            </p>
+            <ol className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2" aria-label="How it works">
+              {["Pick an invoice", "The AI writes and fixes a converter", "Released only if 3 checks pass"].map((t, i) => (
+                <li
+                  key={t}
+                  className="flex flex-col items-start gap-1 rounded-md bg-surface-2 px-2.5 py-2 text-[12px] font-semibold leading-tight sm:flex-row sm:items-center sm:gap-2.5 sm:px-3 sm:text-[13px] lg:text-[14px]"
+                >
+                  <span className="font-display text-[18px] font-extrabold leading-none tnum sm:text-[20px]">{i + 1}</span>
+                  {t}
+                </li>
+              ))}
+            </ol>
+            <p className="mt-2 hidden flex-wrap gap-x-5 gap-y-0.5 text-[12px] text-ink-muted sm:flex lg:text-[13px]">
+              <span>
+                <span className="font-semibold text-ink">AI:</span> {model.name}, through {model.provider}
+              </span>
+              <span>
+                <span className="font-semibold text-ink">Runs in:</span> a CreateOS sandbox, no internet
+              </span>
+              <span>
+                <span className="font-semibold text-ink">Set up with:</span> Stripe Projects
+              </span>
             </p>
           </div>
 
@@ -453,7 +475,7 @@ export function Bench() {
           <div className="order-2 lg:order-none">
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
               <label className="block sm:hidden">
-                <span className="mb-1 block text-[13px] font-semibold text-ink-muted">Source</span>
+                <span className="mb-1 block text-[13px] font-semibold text-ink-muted">Invoice to convert</span>
                 <span className="relative block">
                   <select
                     value={source}
@@ -470,7 +492,7 @@ export function Bench() {
                   <CaretDownIcon size={16} className="pointer-events-none absolute right-3 top-3.5 text-ink-muted" aria-hidden />
                 </span>
               </label>
-              <div role="radiogroup" aria-label="Source" className="hidden h-11 rounded-md bg-surface-2 p-1 sm:inline-flex">
+              <div role="radiogroup" aria-label="Invoice to convert" className="hidden h-11 rounded-md bg-surface-2 p-1 sm:inline-flex">
                 {SOURCES.map((s) => {
                   const on = s.key === source;
                   return (
@@ -553,17 +575,17 @@ export function Bench() {
                       attempt.outcome === "certified" ? "text-success" : attempt.outcome.startsWith("held") ? "text-hold" : ""
                     }`}
                   >
-                    Attempt {attempt.n}: {outcomeText(attempt, run, attempts[selIdx - 1])}
+                    Try {attempt.n}: {outcomeText(attempt, run, attempts[selIdx - 1])}
                   </p>
                 ) : null}
               </>
             ) : liveHere?.phase === "starting" ? (
               <div data-region="tally" className="py-6" aria-live="polite">
-                <p className="shimmer text-[15px]">Starting a live run: resuming the CreateOS VM…</p>
+                <p className="shimmer text-[15px]">Starting a live run: waking the CreateOS sandbox…</p>
               </div>
             ) : ready ? (
               <div data-region="tally" className="rounded-md py-6">
-                <p className="text-[15px]">No attempts on this source yet. Run live to start; a run takes a few minutes.</p>
+                <p className="text-[15px]">Nothing has run on this invoice yet. Press Run live to start; a run takes a few minutes.</p>
                 {replay && (previewState || liveHere) ? (
                   <button type="button" className="link mt-2 text-[14px] font-medium" onClick={resetAll}>
                     See the recorded run
@@ -595,7 +617,7 @@ export function Bench() {
                     onClick={() => setPhoneChange(!phoneChange)}
                     className="btn-tonal h-11 w-full rounded-md px-3 text-[14px] font-semibold lg:hidden"
                   >
-                    {phoneChange ? "Hide the change" : `Show the change (attempt ${attempt.n})`}
+                    {phoneChange ? "Hide the code change" : `Show what the AI changed (try ${attempt.n})`}
                   </button>
                   <div className={phoneChange ? "mt-4 lg:mt-0" : "hidden lg:block"}>
                     <ChangePane run={run} attempt={attempt} />
@@ -611,22 +633,6 @@ export function Bench() {
 
         {/* right block */}
         <div className="contents lg:col-span-5 lg:flex lg:min-w-0 lg:flex-col lg:gap-6 xl:col-span-4">
-          <dl className="order-6 grid grid-cols-[104px_minmax(0,1fr)] gap-x-3 gap-y-1.5 lg:order-none">
-            <dt className="pt-0.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-muted">Written by</dt>
-            <dd className="text-[14px]">
-              {model.name}, through {model.provider}
-              <span className="block text-[12px] text-ink-muted">Falls back to DeepSeek-V3.2 on Featherless, then free OpenRouter models.</span>
-            </dd>
-            <dt className="pt-0.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-muted">Run in</dt>
-            <dd className="text-[14px]">a CreateOS VM with the network off</dd>
-            <dt className="pt-0.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-muted">Released by</dt>
-            <dd className="text-[14px]">three checks the model can&apos;t edit</dd>
-            <dt className="pt-0.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-muted">Set up with</dt>
-            <dd className="text-[14px]">
-              Stripe Projects, from the Stripe CLI
-              {run ? <span className="block text-[12px] text-ink-muted tnum">Model cost for this run: {usd(run.model.costUsd)}.</span> : null}
-            </dd>
-          </dl>
           <div className="order-4 min-w-0 lg:order-none" key={`${source}-${previewState}-${selIdx}-${fool.result?.mutation ?? ""}`}>
             <Sheet
               run={run}
@@ -640,7 +646,7 @@ export function Bench() {
               foolBlocked={source === "stripe" ? {} : { discount: "This invoice has no document-level discount to drop." }}
               convertBlocked={
                 source === "cii"
-                  ? "No second CEN example invoice is bundled, so there is no new invoice to convert with the model off for this source."
+                  ? "Converting another invoice with the AI off isn't available here: we have only one official CEN example invoice."
                   : null
               }
               onFool={doFool}
@@ -660,7 +666,7 @@ export function Bench() {
         <StripePanel run={run ?? replay} />
       </div>
 
-      <About run={replayDefault} />
+      <AboutCard />
       <Footer recordedAt={replay?.recordedAt} />
     </div>
   );

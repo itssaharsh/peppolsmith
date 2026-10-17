@@ -2,7 +2,9 @@
 
 The official validator checks that an invoice agrees with itself. Peppolsmith also checks that it agrees with what you billed.
 
-**Live:** https://peppolsmith.vercel.app
+**Live:** https://peppolsmith.vercel.app · **About, in plain words:** https://peppolsmith.vercel.app/about
+
+![Peppolsmith: errors the official EU checker found per try (6, 5, crash, 1, 0) and the release checks](docs/screenshot.png)
 
 ## What it does
 
@@ -24,17 +26,17 @@ Peppolsmith writes the missing converter:
 | Source | Official rules failed, per attempt | Model calls | Model cost | Time |
 |---|---|---|---|---|
 | Official CEN example `CII_business_example_02.xml` (CII, not UBL) | 6, 5, no XML (crash), 1, **0: Certified** | 5 | $0.030 | 66 s |
-| Stripe test-mode invoice `in_1URdBAFnAoogkMUBUiEf42JL` | **0: Certified** at attempt 1 | 1 | $0.006 | 14 s |
+| Stripe test-mode invoice `in_1URdBAFnAoogkMUBUiEf42JL` | malformed XML, 2, **0: Certified** | 3 | $0.022 | 54 s |
 | Billing-app CSV export (European decimals, two VAT rates) | **0: Certified** at attempt 1 | 1 | $0.005 | 17 s |
 
 - **Try to fool the gates.** We planted three converter bugs into the certified XML: amounts in cents treated as euros, a dropped document-level discount, and an invented buyer Peppol ID with a valid checksum. Each planted XML passes every official rule (0 failed), and each one is held by reconciliation or provenance. The page runs these live.
 - **Model-off conversion.** The certified converters ran on a second Stripe test invoice (`in_1URda7FnAoogkMUB0KkjLgNg`) and a second CSV export. Both certified in about 1.7 s with 0 model calls.
 - **Honest limits of the evidence:**
-  - Across our 10 recorded runs, every XML that passed the official rules also tied to its source, so the gates never caught a real model slip. The planted bugs are the evidence that they would.
-  - Convergence varies from run to run, as you'd expect from a model. These are our 17 Oct runs with the final feedback (rule IDs, official XPath tests and the model's own XML):
-    - CII example: 4 of 6 reached Certified within 6 attempts (at attempts 2, 5, 5 and 6); the other 2 ended Not released.
-    - Stripe test invoice: 3 of 3 (at attempts 1, 2 and 4).
-    - CSV export: 1 of 1 (at attempt 1).
+  - Across our 21 terminal runs, all 14 XMLs that passed the official rules also tied to their source. The gates never caught a real model slip; the planted bugs are the evidence that they would.
+  - Convergence varies from run to run, as you'd expect from a model. These are all our 17 Oct runs since the fix feedback included the official XPath tests and the model's own XML:
+    - CII example: 6 of 8 reached Certified within 6 attempts.
+    - Stripe test invoice: 6 of 7 (including runs through the deployed page). The one that didn't stalled on a line-arithmetic rule (PEPPOL-EN16931-R120). That's why the fix prompt now adds a plain note for rules models often misread; every run since has certified.
+    - CSV export: 1 of 1.
     - Nothing was ever released without all three checks passing.
 
 ## How it uses the sponsors

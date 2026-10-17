@@ -33,6 +33,12 @@ export async function POST(request: Request) {
     if (next.verdict !== "running") await releaseRun(golden, run.runId);
     return Response.json(signRun(next));
   } catch (e) {
-    return Response.json({ error: `The attempt failed: ${(e as Error).message}` }, { status: 502 });
+    try {
+      const golden = (await resumeGolden())?.sandbox;
+      if (golden) await releaseRun(golden, run.runId); // a failed step ends the run; don't block the next visitor
+    } catch {
+      /* the lock goes stale on its own */
+    }
+    return Response.json({ error: `The attempt failed: ${(e as Error).message.slice(0, 300)}` }, { status: 502 });
   }
 }

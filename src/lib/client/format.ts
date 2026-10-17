@@ -8,17 +8,17 @@ export type SourceKey = "stripe" | "cii" | "csv";
 export const SOURCES: { key: SourceKey; label: string; provenance: string }[] = [
   {
     key: "stripe",
-    label: "Stripe test invoice",
+    label: "Stripe invoice",
     provenance: "A Stripe test-mode invoice created with the Stripe CLI: Stripe's own invoice format, with a customer and amounts we wrote.",
   },
   {
     key: "cii",
-    label: "CEN example (CII)",
+    label: "German e-invoice (CII)",
     provenance: "An official example invoice from the CEN EN16931 test set, in the UN/CEFACT CII format. Unmodified.",
   },
   {
     key: "csv",
-    label: "CSV export",
+    label: "Spreadsheet export (CSV)",
     provenance: "Invoice rows we wrote in a home-grown billing app's CSV export: semicolons, comma decimals, two VAT rates.",
   },
 ];
@@ -101,11 +101,11 @@ export function amountRow(a: Attempt | null | undefined): ReconRow | undefined {
 
 /** Plain-language step names (UI-SPEC §9). */
 export const STEP_LABEL: Record<string, string> = {
-  write: "Writing map.py",
-  run: "Running map.py, network off",
-  rules: "Checking the official rules",
-  reconcile: "Tying totals to the source",
-  provenance: "Tracing IDs to the source",
+  write: "The AI is writing the converter",
+  run: "Running it in the sandbox, no internet",
+  rules: "Checking it against the EU rules",
+  reconcile: "Comparing the totals with the bill",
+  provenance: "Checking every company ID",
 };
 
 export function downloadBlob(name: string, text: string, type: string) {

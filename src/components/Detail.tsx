@@ -6,7 +6,18 @@ import type { Attempt, RuleCount, RunLog } from "@/lib/runlog";
 import { clock, runModel, secs, STEP_LABEL } from "@/lib/client/format";
 import { Tick } from "./glyphs";
 
-const cleanMsg = (m: string) => m.replace(/^\[[^\]]+\]\s*-?\s*/, "").trim();
+const cleanMsg = (m: string) => {
+  const t = m.replace(/^\[[^\]]+\]\s*-?\s*/, "").trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+};
+
+const SHORT_STEP: Record<string, string> = {
+  write: "writing code",
+  run: "running it",
+  rules: "EU rules",
+  reconcile: "totals",
+  provenance: "IDs",
+};
 
 /* ---------------- Running checklist ---------------- */
 
@@ -23,9 +34,9 @@ export function Checklist({ run, stepIndex, elapsedMs }: { run: RunLog | null; s
   const ids = Object.keys(STEP_LABEL);
   return (
     <section aria-label="Running steps" className="fade-in">
-      <h2 className="text-[15px] font-bold">Attempt {(run?.attempts.length ?? 0) + 1} is running</h2>
+      <h2 className="text-[15px] font-bold">Try {(run?.attempts.length ?? 0) + 1} is running</h2>
       <p className="mt-1 text-[13px] text-ink-muted">
-        Steps finish together when the attempt lands; the highlighted step is an estimate from elapsed time.
+        All five steps report back together when the try finishes, usually within a minute. The highlighted step is an estimate.
       </p>
       <ol className="mt-3">
         {ids.map((id, i) => {
@@ -106,14 +117,12 @@ export function ChangePane({ run, attempt }: { run: RunLog; attempt: Attempt }) 
   const writeStep = attempt.steps.find((s) => s.id === "write");
 
   let summary = "";
-  if (attempt.outcome === "error" && !attempt.diff) summary = "The model returned no code in this attempt.";
-  else if (attempt.n === 1) summary = `Converter written: ${attempt.added || attempt.code?.split("\n").length || 0} lines.`;
-  else if (!attempt.diff || (attempt.added === 0 && attempt.removed === 0)) summary = "No code change in this attempt.";
+  if (attempt.outcome === "error" && !attempt.diff) summary = "The AI sent back no code in this try.";
+  else if (attempt.n === 1) summary = `First draft: the AI wrote a ${attempt.added || attempt.code?.split("\n").length || 0}-line Python converter, map.py.`;
+  else if (!attempt.diff || (attempt.added === 0 && attempt.removed === 0)) summary = "No code change in this try.";
   else if (attempt.rules)
-    summary = `Fixed ${attempt.rules.fixed.length} ${attempt.rules.fixed.length === 1 ? "rule" : "rules"}. ${attempt.rules.new.length} new ${
-      attempt.rules.new.length === 1 ? "failure" : "failures"
-    }. ${failed ?? 0} still fail.`;
-  else summary = `${attempt.added} lines added, ${attempt.removed} removed.`;
+    summary = `The AI read the errors from the last try and edited ${attempt.added + attempt.removed} lines. Fixed ${attempt.rules.fixed.length}, ${attempt.rules.new.length} new, ${failed ?? 0} left.`;
+  else summary = `The AI edited its code: ${attempt.added} lines added, ${attempt.removed} removed.`;
   void prevFailed;
 
   const diffLines = attempt.diff ? attempt.diff.split("\n").filter((l) => !l.startsWith("Index:") && !/^=+$/.test(l)).length : 0;
@@ -124,7 +133,7 @@ export function ChangePane({ run, attempt }: { run: RunLog; attempt: Attempt }) 
     <section aria-labelledby="change-h" className="min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="change-h" className="text-[15px] font-bold">
-          What the model changed in map.py <span className="font-normal text-ink-muted">(attempt {attempt.n})</span>
+          What the AI changed in its code <span className="font-normal text-ink-muted">(try {attempt.n})</span>
         </h2>
         <div role="radiogroup" aria-label="Show" className="inline-flex rounded-md bg-surface-2 p-0.5">
           {(["change", "source", "xml"] as View[]).map((v) => (
@@ -141,7 +150,7 @@ export function ChangePane({ run, attempt }: { run: RunLog; attempt: Attempt }) 
                 view === v ? "bg-surface-1 font-semibold text-ink shadow-[0_0_0_1px_var(--line-input)]" : "text-ink-muted hover:text-ink"
               }`}
             >
-              {v === "change" ? "Change" : v === "source" ? "Source" : "XML"}
+              {v === "change" ? "Code change" : v === "source" ? "Original" : "E-invoice"}
             </button>
           ))}
         </div>
@@ -151,8 +160,8 @@ export function ChangePane({ run, attempt }: { run: RunLog; attempt: Attempt }) 
         <p className="mt-2 flex items-start gap-2 rounded-md bg-surface-2 px-3 py-2.5 text-[14px]">
           <ProhibitIcon size={18} className="mt-0.5 shrink-0 text-warning" aria-hidden />
           <span>
-            The sandbox blocked map.py&apos;s outbound connection. The network is off while the model&apos;s code runs, so map.py stopped before
-            writing XML.
+            The sandbox blocked the code&apos;s attempt to reach the internet. The AI&apos;s code runs with no internet, so it stopped before writing
+            the invoice.
           </span>
         </p>
       ) : null}
@@ -166,13 +175,13 @@ export function ChangePane({ run, attempt }: { run: RunLog; attempt: Attempt }) 
           attempt.diff ? (
             <DiffWell diff={attempt.diff} full={full} />
           ) : (
-            <p className="rounded-md bg-surface-sunken px-4 py-3 text-[14px] text-ink-muted">No code change in this attempt.</p>
+            <p className="rounded-md bg-surface-sunken px-4 py-3 text-[14px] text-ink-muted">No code change in this try.</p>
           )
         ) : text ? (
           <TextWell text={text} full={full} />
         ) : (
           <p className="rounded-md bg-surface-sunken px-4 py-3 text-[14px] text-ink-muted">
-            {view === "source" ? "Source text not in this recording." : "This attempt wrote no XML."}
+            {view === "source" ? "The original invoice isn't in this recording." : "This try produced no e-invoice."}
           </p>
         )}
         {view === "change" && diffLines > 18 ? (
@@ -197,18 +206,21 @@ function RuleRow({ r, fixed }: { r: RuleCount; fixed?: boolean }) {
   return (
     <li>
       <details className="group">
-        <summary className="grid min-h-9 grid-cols-[16px_minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-x-2 rounded-sm py-1 hover:bg-surface-2/60">
+        <summary className="grid min-h-9 grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-x-2 rounded-sm py-1 hover:bg-surface-2/60">
           <CaretRightIcon size={12} className="caret text-ink-muted" aria-hidden />
-          <span className="flex items-center gap-1 font-mono text-[13px] font-medium">
+          <span className="flex min-w-0 items-center gap-1.5 text-[13px]">
             {fixed ? <Tick size={13} /> : null}
-            {r.id}
+            <span className="truncate">{r.message ? cleanMsg(r.message) : r.id}</span>
           </span>
-          <span className="truncate text-[13px] text-ink-muted">{cleanMsg(r.message)}</span>
-          <span className="text-[13px] text-ink-muted tnum">{fixed ? "" : `×${r.count}`}</span>
+          <span className="font-mono text-[11px] text-ink-muted">{r.id}</span>
         </summary>
         <div className="pb-2 pl-6 pr-2 text-[13px] leading-5">
           <p>{cleanMsg(r.message)}</p>
-          <p className="mt-1 text-[12px] text-ink-muted">{r.set}</p>
+          <p className="mt-1 text-[12px] text-ink-muted">
+            Rule <span className="font-mono">{r.id}</span>
+            {r.set ? `, ${r.set}` : ""}
+            {!fixed && r.count > 1 ? `. Found ${r.count} times.` : "."}
+          </p>
           {extra.test ? (
             <div className="mt-1.5">
               <p className="text-[12px] font-semibold text-ink-muted">Official test</p>
@@ -237,22 +249,22 @@ export function RulesList({ run, attempt, running }: { run: RunLog; attempt: Att
   return (
     <section aria-labelledby="rules-h" className="min-w-0">
       <h2 id="rules-h" className="text-[15px] font-bold">
-        {running ? "Rules the model is fixing" : "Official rules failing"}{" "}
+        {running ? "Errors the AI is fixing" : "Errors to fix"}{" "}
         <span className="font-normal text-ink-muted tnum">({rules ? failed.length : 0})</span>
       </h2>
       {!rules ? (
         <p className="mt-2 text-[14px] text-ink-muted">
           {attempt.outcome === "no_xml"
-            ? "The official rules didn't run: map.py wrote no XML in this attempt."
+            ? "Nothing to check: the code crashed before it produced an invoice."
             : attempt.outcome === "error"
-              ? "The official rules didn't run in this attempt."
-              : "Not run yet."}
+              ? "Nothing to check in this try."
+              : "Not checked yet."}
         </p>
       ) : rules.error ? (
-        <p className="mt-2 text-[14px]">Couldn&apos;t run the official rules: {rules.error}</p>
+        <p className="mt-2 text-[14px]">Couldn&apos;t run the EU checker: {rules.error}</p>
       ) : failed.length === 0 ? (
         <p className="mt-2 flex items-center gap-2 text-[14px]">
-          <Tick size={16} /> No official rules failed in this attempt.
+          <Tick size={16} /> No errors: the EU checker found nothing to fix.
         </p>
       ) : (
         <>
@@ -267,7 +279,7 @@ export function RulesList({ run, attempt, running }: { run: RunLog; attempt: Att
       {fixedRules.length ? (
         <details className="mt-3">
           <summary className="flex items-center gap-2 text-[14px] font-semibold">
-            <CaretRightIcon size={12} className="caret text-ink-muted" aria-hidden /> Fixed in this attempt ({fixedRules.length})
+            <CaretRightIcon size={12} className="caret text-ink-muted" aria-hidden /> Fixed in this try ({fixedRules.length})
           </summary>
           <ul className="mt-1">{fixedRules.map((r) => <RuleRow key={r.id} r={r} fixed />)}</ul>
         </details>
@@ -275,15 +287,15 @@ export function RulesList({ run, attempt, running }: { run: RunLog; attempt: Att
       {rules?.warnings.length ? (
         <details className="mt-3">
           <summary className="flex items-center gap-2 text-[14px] font-semibold">
-            <CaretRightIcon size={12} className="caret text-ink-muted" aria-hidden /> Warnings ({rules.warnings.length}), not counted
+            <CaretRightIcon size={12} className="caret text-ink-muted" aria-hidden /> Warnings ({rules.warnings.length}), not counted as errors
           </summary>
           <ul className="mt-1">{rules.warnings.map((r) => <RuleRow key={r.id} r={r} />)}</ul>
         </details>
       ) : null}
       {attempt.steps.length ? (
         <p className="mt-4 text-[12px] leading-5 text-ink-muted tnum">
-          This attempt took {secs(attempt.ms)}:{" "}
-          {attempt.steps.map((s, i) => `${STEP_LABEL[s.id]?.toLowerCase() ?? s.id} ${secs(s.ms)}${i < attempt.steps.length - 1 ? ", " : "."}`)}
+          This try took {secs(attempt.ms)}:{" "}
+          {attempt.steps.map((s, i) => `${SHORT_STEP[s.id] ?? s.id} ${secs(s.ms)}${i < attempt.steps.length - 1 ? ", " : "."}`)}
         </p>
       ) : null}
     </section>

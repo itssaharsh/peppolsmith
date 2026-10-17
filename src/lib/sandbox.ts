@@ -206,8 +206,14 @@ export async function validateRun(sb: Sandbox, runId: string): Promise<Validatio
     ["-c", `cd /opt/val && { sha256sum --quiet -c MANIFEST || exit 3; } && { pkill -9 -u nobody; /opt/v/bin/python validate.py check /work/${id}/out.xml; }`],
     { timeoutMs: 90_000 },
   );
+  if (r.result.exit_code === 3) throw new Error("validator refused to run: its files don't match the bootstrap manifest");
   if (r.result.exit_code !== 0) {
-    throw new Error(`validator refused to run (manifest check or crash): ${(r.result.stderr || r.result.stdout).slice(-300)}`);
+    // the official stylesheets can stop with a dynamic error on odd XML (a bad number, a wrong type): that is feedback for map.py
+    const text = (r.result.stderr || r.result.stdout).trim();
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    const at = lines.findIndex((l) => /error/i.test(l) && !/^(File |Traceback|at |invoked by)/.test(l));
+    const why = at >= 0 ? lines.slice(at, at + 3).join(" | ").replace(/^saxonc\.PySaxonApiError: /, "") : (lines.slice(-1)[0] ?? "no message");
+    return { wellFormed: false, error: `The official checker stopped on this XML: ${why.slice(0, 500)}`, failed: [], warnings: [] };
   }
   return JSON.parse(r.result.stdout) as Validation;
 }

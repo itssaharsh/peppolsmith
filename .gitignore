@@ -65,6 +65,8 @@ storage_state*.json
 .vercel
 *.tsbuildinfo
 
+.runs/
+
 .projects/cache
 .projects/vault
 .projects/state.test.json
@@ -72,4 +74,3 @@ storage_state*.json
 .env
 .env.*
 !.env.example
-.runs/

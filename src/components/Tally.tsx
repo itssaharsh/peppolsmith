@@ -11,28 +11,28 @@ export function outcomeText(a: Attempt, run: RunLog, prev: Attempt | undefined):
   const isLast = run.attempts[run.attempts.length - 1] === a;
   switch (a.outcome) {
     case "certified":
-      return "Certified";
+      return "Passed all checks";
     case "held_reconciliation": {
       const r = amountRow(a);
-      if (r && r.source !== null && r.xml !== null && r.xml !== r.source) return `Held: ${money(Math.abs(r.xml - r.source))} off the bill`;
-      return "Held: totals don't tie";
+      if (r && r.source !== null && r.xml !== null && r.xml !== r.source) return `Held back: ${money(Math.abs(r.xml - r.source))} off the bill`;
+      return "Held back: totals don't match";
     }
     case "held_provenance":
-      return "Held: ID not in the source";
+      return "Held back: an ID isn't from the invoice";
     case "no_xml":
-      if (isLast && run.verdict === "no_release") return "Not released";
-      return a.run?.networkBlocked ? "No XML: network blocked" : "No XML: map.py stopped";
+      if (isLast && run.verdict === "no_release") return "Not ready";
+      return a.run?.networkBlocked ? "Blocked: no internet" : "Crashed: no invoice";
     case "error":
-      if (isLast && run.verdict === "no_release") return "Not released";
-      return "Couldn't finish";
+      if (isLast && run.verdict === "no_release") return "Not ready";
+      return "The AI sent no code";
     case "rules_failed": {
-      if (isLast && run.verdict === "no_release") return "Not released";
-      if (a.n === 1 || !prev) return "Converter written";
+      if (isLast && run.verdict === "no_release") return "Not ready";
+      if (a.n === 1 || !prev) return "First draft";
       const before = [...run.attempts.slice(0, run.attempts.indexOf(a))].reverse().find((x) => x.rules);
       const now = a.rules?.failed.length ?? 0;
       const fixed = Math.max(a.rules?.fixed.length ?? 0, before?.rules ? before.rules.failed.length - now : 0);
-      if (!before) return "First XML checked";
-      return fixed > 0 ? `Fixed ${fixed}` : "None fixed yet";
+      if (!before) return "First invoice checked";
+      return fixed > 0 ? `Fixed ${fixed}` : "No fix yet";
     }
   }
 }
@@ -70,10 +70,10 @@ export function Tally({ run, selected, onSelect, pending, stopped }: Props) {
 
   return (
     <div data-region="tally">
-      <p className="mb-2 text-[13px] text-ink-muted lg:hidden">Official rules failed, per attempt</p>
+      <h2 className="mb-1 text-[13px] font-semibold text-ink-muted">Errors the official EU checker found, per try</h2>
       <div
         role="tablist"
-        aria-label="Attempts"
+        aria-label="Tries"
         onKeyDown={onKey}
         className="grid gap-1.5 sm:gap-4"
         style={{ gridTemplateColumns: `repeat(${slots}, minmax(0, 1fr))` }}
@@ -99,7 +99,7 @@ export function Tally({ run, selected, onSelect, pending, stopped }: Props) {
               }`}
             >
               <span className="whitespace-nowrap text-[12px] font-semibold text-ink-muted sm:text-[13px]">
-                <span className="hidden sm:inline">Attempt </span>
+                <span className="hidden sm:inline">Try </span>
                 <span className="sm:hidden">#</span>
                 {a.n}
               </span>
@@ -118,12 +118,12 @@ export function Tally({ run, selected, onSelect, pending, stopped }: Props) {
                 ) : (
                   <span className="relative inline-block" style={{ ["--ring-h" as string]: "0.9em" }}>
                     <NumberFlow value={count ?? 0} format={{ useGrouping: false }} willChange />
-                    {held ? <Ring scale={1.18} width={3} delay={i === selected ? 120 : 600} minAspect={1.5} /> : null}
+                    {held ? <Ring scale={1.04} width={3} delay={i === selected ? 120 : 600} minAspect={1.7} /> : null}
                   </span>
                 )}
               </span>
               <span className="text-[12px] text-ink-muted sm:text-[13px]">
-                {noXml ? (a.outcome === "error" ? "no code" : "no XML") : "rules failed"}
+                {noXml ? (a.outcome === "error" ? "no code" : "no invoice") : count === 1 ? "error" : "errors"}
               </span>
               <span className="mt-1.5 block h-1.5 w-full">
                 {count ? (
@@ -150,7 +150,7 @@ export function Tally({ run, selected, onSelect, pending, stopped }: Props) {
         {pending ? (
           <div className="flex min-w-0 flex-col items-start rounded-md px-1.5 pb-3 pt-2 sm:px-3" aria-live="polite">
             <span className="whitespace-nowrap text-[12px] font-semibold text-ink-muted sm:text-[13px]">
-              <span className="hidden sm:inline">Attempt </span>
+              <span className="hidden sm:inline">Try </span>
               <span className="sm:hidden">#</span>
               {attempts.length + 1}
             </span>
@@ -173,10 +173,10 @@ export function Tally({ run, selected, onSelect, pending, stopped }: Props) {
             style={{ gridColumn: `${used + 1} / span ${Math.min(2, slots - used)}` }}
           >
             {stopped
-              ? `Stopped after attempt ${attempts.length}.`
+              ? `Stopped after try ${attempts.length}.`
               : run.verdict === "certified"
-                ? `Released after ${attempts.length} ${attempts.length === 1 ? "attempt" : "attempts"}. A run gets up to 6.`
-                : `Ended after ${attempts.length} ${attempts.length === 1 ? "attempt" : "attempts"}. A run gets up to 6.`}
+                ? `Passed on try ${attempts.length}. The AI gets up to 6 tries.`
+                : `Ended after ${attempts.length} ${attempts.length === 1 ? "try" : "tries"}. The AI gets up to 6.`}
           </div>
         ) : null}
       </div>

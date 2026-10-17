@@ -42,18 +42,37 @@ const MUTATIONS: { id: "cents" | "discount" | "buyer_id"; label: string }[] = [
   { id: "buyer_id", label: "Invent a buyer Peppol ID" },
 ];
 
-function GateRow({ name, who, state, children }: { name: string; who: string; state: ReactNode; children?: ReactNode }) {
+function GateRow({
+  name,
+  plain,
+  state,
+  failing,
+  children,
+}: {
+  name: string;
+  plain: string;
+  state: ReactNode;
+  failing: boolean;
+  children?: ReactNode;
+}) {
   return (
-    <div className="border-t border-line py-3 first:border-t-0">
+    <li className="border-t border-line py-3 first:border-t-0">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-[15px] font-bold">{name}</h3>
-          <p className="text-[12px] leading-4 text-ink-muted">{who}</p>
+          <p className="text-[12px] leading-4 text-ink-muted">{plain}</p>
         </div>
         <div className="shrink-0 pt-0.5 text-right text-[14px] font-semibold">{state}</div>
       </div>
-      {children}
-    </div>
+      {children ? (
+        <details className="mt-1.5" open={failing || undefined}>
+          <summary className="inline-flex items-center gap-1 text-[13px] font-medium text-ink-muted hover:text-ink">
+            <CaretRightIcon size={12} className="caret" aria-hidden /> Details
+          </summary>
+          <div className="pt-1">{children}</div>
+        </details>
+      ) : null}
+    </li>
   );
 }
 
@@ -64,8 +83,8 @@ function TieOut({ rows }: { rows: ReconRow[] }) {
         <thead>
           <tr className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
             <th className="py-1 pr-2 text-left font-semibold">Check</th>
-            <th className="w-[96px] px-2 py-1 text-right font-semibold">Source</th>
-            <th className="w-[96px] px-2 py-1 text-right font-semibold">XML</th>
+            <th className="w-[96px] px-2 py-1 text-right font-semibold">Bill</th>
+            <th className="w-[96px] px-2 py-1 text-right font-semibold">E-invoice</th>
             <th className="w-[30px] py-1 text-center font-semibold">
               <span className="sr-only">Mark</span>
             </th>
@@ -86,10 +105,10 @@ function TieOut({ rows }: { rows: ReconRow[] }) {
                 {r.ties ? (
                   <>
                     <Tick size={15} draw />
-                    <span className="sr-only">agrees with the source</span>
+                    <span className="sr-only">matches the bill</span>
                   </>
                 ) : (
-                  <span className="sr-only">doesn&apos;t agree</span>
+                  <span className="sr-only">doesn&apos;t match the bill</span>
                 )}
               </td>
             </tr>
@@ -106,62 +125,58 @@ export function gatesFromAttempt(a: Attempt | null): GateSet {
 }
 
 export function Gates({ g, run, checking }: { g: GateSet; run: RunLog | null; checking: boolean }) {
-  const rulesState = checking ? (
-    <span className="text-ink-muted">Checking</span>
-  ) : !g.rules ? (
-    <span className="text-ink-muted">{g.outcome === "no_xml" || g.outcome === "error" ? "Didn't run" : "Not run yet"}</span>
-  ) : g.rules.error ? (
-    <span>Couldn&apos;t run</span>
-  ) : g.rules.failed.length === 0 ? (
-    <span className="inline-flex items-center gap-1.5 text-success">
-      <Tick size={16} draw /> 0 failed
+  const pass = (label: string) => (
+    <span className="inline-flex items-center gap-1.5 text-success tnum">
+      <Tick size={16} draw /> {label}
     </span>
-  ) : (
-    <span className="tnum">{g.rules.failed.length} failing</span>
   );
+  const fail = (label: string) => (
+    <span className="inline-flex items-center gap-1.5 text-hold tnum">
+      <MiniRing /> {label}
+    </span>
+  );
+  const muted = (label: string) => <span className="text-ink-muted">{label}</span>;
+
+  const rulesFailing = !!g.rules && !g.rules.error && g.rules.failed.length > 0;
+  const rulesState = checking
+    ? muted("Checking")
+    : !g.rules
+      ? muted(g.outcome === "no_xml" || g.outcome === "error" ? "Nothing to check" : "Not checked yet")
+      : g.rules.error
+        ? <span>Couldn&apos;t run</span>
+        : g.rules.failed.length === 0
+          ? pass("Passed")
+          : <span className="tnum">{g.rules.failed.length} {g.rules.failed.length === 1 ? "error" : "errors"}</span>;
+
   const rows = g.reconciliation?.rows ?? null;
   const ties = rows ? rows.every((r) => r.ties) : false;
-  const reconState = checking ? (
-    <span className="text-ink-muted">Checking</span>
-  ) : !rows ? (
-    <span className="text-ink-muted">Not run yet</span>
-  ) : ties ? (
-    <span className="inline-flex items-center gap-1.5 text-success">
-      <Tick size={16} draw /> All tie
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 text-hold">
-      <MiniRing /> Doesn&apos;t tie
-    </span>
-  );
+  const reconState = checking ? muted("Checking") : !rows ? muted("Not checked yet") : ties ? pass("Match") : fail("Don't match");
+
   const p = g.provenance;
-  const provState = checking ? (
-    <span className="text-ink-muted">Checking</span>
-  ) : !p ? (
-    <span className="text-ink-muted">Not run yet</span>
-  ) : p.untraced.length === 0 ? (
-    <span className="inline-flex items-center gap-1.5 text-success tnum">
-      <Tick size={16} draw /> {p.traced} of {p.total} traced
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 text-hold tnum">
-      <MiniRing /> {p.untraced.length} not in the source
-    </span>
-  );
+  const provState = checking
+    ? muted("Checking")
+    : !p
+      ? muted("Not checked yet")
+      : p.untraced.length === 0
+        ? pass(`${p.traced} of ${p.total}`)
+        : fail(`${p.untraced.length} invented`);
+
   const sets = run?.rulesets ?? [];
   return (
-    <div className="mt-2">
+    <ul className="mt-2" aria-label="The three checks">
       <GateRow
-        name="Official rules"
-        who={
-          sets.length
-            ? `${sets.map((s) => `${s.name.replace(" (UBL)", "")} ${s.version.replace("validation-", "v")}`).join(" and ")}, run in the CreateOS VM`
-            : "CEN EN16931 and Peppol BIS Billing 3.0, run in the CreateOS VM"
-        }
+        name="Follows the EU e-invoice rules"
+        plain="The official EU checker, run inside the locked sandbox."
         state={rulesState}
+        failing={rulesFailing}
       >
+        <p className="text-[12px] leading-4 text-ink-muted">
+          {sets.length
+            ? `${sets.map((s) => `${s.name.replace(" (UBL)", "")} ${s.version.replace("validation-", "v")}`).join(" and ")}, run in the CreateOS VM by Peppolsmith, not by the AI's code. Rule files:`
+            : "CEN EN16931 and Peppol BIS Billing 3.0, run in the CreateOS VM."}
+        </p>
         {sets.length ? (
-          <ul className="mt-1.5 space-y-0.5">
+          <ul className="mt-1 space-y-0.5">
             {sets.map((s) => (
               <li key={s.file} className="truncate font-mono text-[12px] text-ink-muted">
                 {s.file} sha256 {s.sha256.slice(0, 8)}
@@ -170,33 +185,48 @@ export function Gates({ g, run, checking }: { g: GateSet; run: RunLog | null; ch
           </ul>
         ) : null}
       </GateRow>
-      <GateRow name="Reconciliation" who="Totals in the XML against the source record. Server, no model." state={reconState}>
+      <GateRow
+        name="Totals match the bill"
+        plain="Lines, VAT and amount due compared with the original invoice. No AI involved."
+        state={reconState}
+        failing={!!rows && !ties}
+      >
         {rows ? (
           <TieOut rows={rows} />
         ) : (
-          <p className="mt-1 text-[13px] text-ink-muted">Runs once map.py writes XML that passes the official rules.</p>
+          <p className="text-[13px] text-ink-muted">Runs once the code produces an invoice that passes the EU rules.</p>
         )}
       </GateRow>
       <GateRow
-        name="Provenance"
-        who="Every party name, VAT ID, Peppol ID and IBAN must come from the source or the declared settings. Server, no model."
+        name="Company IDs come from the invoice"
+        plain="Every name, VAT number, Peppol ID and IBAN must appear in the original or the declared settings. No AI involved."
         state={provState}
+        failing={!!p && p.untraced.length > 0}
       >
-        {p && p.untraced.length ? (
-          <ul className="mt-2 space-y-1">
-            {p.untraced.map((u) => (
-              <li key={u.field + u.value} className="text-[13px]">
-                {u.field}{" "}
-                <span className="relative inline-block font-mono">
-                  {u.value}
-                  <Ring scale={1.3} width={2.5} delay={200} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        {p ? (
+          p.untraced.length ? (
+            <ul className="space-y-1">
+              {p.untraced.map((u) => (
+                <li key={u.field + u.value} className="text-[13px]">
+                  {u.field}{" "}
+                  <span className="relative inline-block font-mono">
+                    {u.value}
+                    <Ring scale={1.3} width={2.5} delay={200} />
+                  </span>{" "}
+                  is not in the original invoice.
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13px] text-ink-muted tnum">
+              {p.traced} of {p.total} names and IDs in the e-invoice were found in the original invoice or the declared settings.
+            </p>
+          )
+        ) : (
+          <p className="text-[13px] text-ink-muted">Runs once the code produces an invoice that passes the EU rules.</p>
+        )}
       </GateRow>
-    </div>
+    </ul>
   );
 }
 
@@ -216,16 +246,15 @@ function ReleasedOutputs(props: {
     <div className="mt-4">
       <div className="flex flex-wrap gap-2">
         <button type="button" {...lockedAttrs} onClick={locked ? undefined : props.onXml} className="btn-tonal inline-flex h-10 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-[14px] font-semibold">
-          <DownloadSimpleIcon size={18} className="shrink-0" aria-hidden /> Download XML
+          <DownloadSimpleIcon size={18} className="shrink-0" aria-hidden /> E-invoice (XML)
         </button>
         <button type="button" {...lockedAttrs} onClick={locked ? undefined : props.onCert} className="btn-tonal inline-flex h-10 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-[14px] font-semibold">
           <DownloadSimpleIcon size={18} className="shrink-0" aria-hidden />
-          <span className="hidden sm:inline">Download certificate</span>
-          <span className="sm:hidden">Certificate</span>
+          Certificate
         </button>
       </div>
       {locked ? (
-        <p className="mt-2 text-[13px] text-ink-muted">Downloads unlock when all three checks pass.</p>
+        <p className="mt-2 text-[13px] text-ink-muted">Downloads unlock when all 3 checks pass.</p>
       ) : (
         <>
           {props.convertBlocked ? (
@@ -238,9 +267,9 @@ function ReleasedOutputs(props: {
                 aria-disabled={convert?.loading ? true : undefined}
                 className="btn-tonal mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-md px-3 py-2 text-[14px] font-semibold"
               >
-                {convert?.loading ? "Converting…" : "Convert a new invoice with the model off"}
+                {convert?.loading ? "Converting…" : "Convert another invoice, AI off"}
               </button>
-              <p className="mt-1.5 text-[12px] text-ink-muted">Runs the certified converter on a new invoice of the same shape. No model call.</p>
+              <p className="mt-1.5 text-[12px] text-ink-muted">Reuses the approved converter on a new invoice of the same kind. No AI call.</p>
             </>
           )}
           {convert?.error ? <p className="rise-in mt-2 text-[14px]">Couldn&apos;t convert: {convert.error}</p> : null}
@@ -260,22 +289,22 @@ function ConvertRow({ r, onXml }: { r: ConvertResult; onXml: () => void }) {
       {ok ? (
         <p>
           Converted {r.label ? <span className="font-semibold">{r.label}</span> : null}
-          {r.invoiceRef ? <span className="font-mono text-[13px]"> {r.invoiceRef}</span> : null} in {secs(r.ms)} with {r.modelCalls} model calls. Official
-          rules: {failed} failed. Totals {ties ? "tie" : "don't tie"}. {r.provenance.traced} of {r.provenance.total} IDs traced.
+          {r.invoiceRef ? <span className="font-mono text-[13px]"> {r.invoiceRef}</span> : null} in {secs(r.ms)} with {r.modelCalls} AI calls. EU rules:{" "}
+          {failed} errors. Totals {ties ? "match" : "don't match"}. {r.provenance.traced} of {r.provenance.total} IDs from the invoice.
         </p>
       ) : failed > 0 ? (
         <p>
-          The certified converter didn&apos;t handle this invoice: {failed} official {failed === 1 ? "rule fails" : "rules fail"}. Run live to build a new one.
+          The approved converter didn&apos;t handle this invoice: {failed} EU rule {failed === 1 ? "error" : "errors"}. Run live to build a new one.
         </p>
       ) : (
         <p>
-          The certified converter&apos;s output for {r.invoiceRef || "this invoice"} was held: {ties ? "an ID isn't in the source" : "the totals don't tie"}. {r.modelCalls} model
-          calls.
+          The approved converter&apos;s output for {r.invoiceRef || "this invoice"} was held back: {ties ? "an ID isn't in the invoice" : "the totals don't match"}.{" "}
+          {r.modelCalls} AI calls.
         </p>
       )}
       {r.xml ? (
         <button type="button" onClick={onXml} className="link mt-1 font-medium">
-          Download this XML
+          Download this e-invoice
         </button>
       ) : null}
     </div>
@@ -318,23 +347,25 @@ export function Sheet(p: SheetProps) {
       : undefined;
   const heldRow = amountRow(earlierHeld);
 
+  const big = { fontSize: "var(--text-2xl)" };
   let verdict: ReactNode;
   if (p.checking) {
     verdict = (
       <div>
-        <p className="text-[28px] font-extrabold leading-tight" style={{ fontSize: "var(--text-2xl)" }}>
+        <p className="font-extrabold leading-tight" style={big}>
           Checking
         </p>
-        <p className="mt-1 text-[14px]">Waiting for the official rules.</p>
+        <p className="mt-1 text-[14px]">The AI is working on this try. The checks run as soon as its code produces an invoice.</p>
       </div>
     );
   } else if (outcome === "certified") {
     verdict = (
       <div className="fade-in">
-        <p className="flex items-center gap-2 font-extrabold leading-tight text-success" style={{ fontSize: "var(--text-2xl)" }}>
-          <Tick size={28} draw /> Certified
+        <p className="flex items-center gap-2 font-extrabold leading-tight text-success" style={big}>
+          <Tick size={28} draw /> Ready to send
         </p>
-        <p className="mt-1 text-[14px]">All three checks pass. The XML and this converter are released for the {p.sourceLabel}.</p>
+        <p className="mt-1 text-[15px] font-semibold">Passed all 3 checks.</p>
+        <p className="mt-0.5 text-[14px]">The e-invoice and the converter that made it are released. The next invoice of this kind converts with no AI.</p>
       </div>
     );
   } else if (outcome === "held_reconciliation") {
@@ -346,75 +377,82 @@ export function Sheet(p: SheetProps) {
           const c = x.check.replace(" (before VAT)", "");
           return c.startsWith("VAT") ? c : c.charAt(0).toLowerCase() + c.slice(1);
         }) ?? [];
+    const has = r && r.source !== null && r.xml !== null;
     verdict = (
       <div className="fade-in rounded-md bg-hold-container p-4">
-        <p className="font-extrabold leading-tight text-hold" style={{ fontSize: "var(--text-2xl)" }}>
-          Held
+        <p className="font-extrabold leading-tight text-hold" style={big}>
+          Held back
         </p>
-        <p className="mt-1 text-[15px]">The official rules pass, but the XML doesn&apos;t match what was billed.</p>
-        {r && r.source !== null && r.xml !== null ? (
+        <p className="mt-1 text-[15px]">
+          {has
+            ? `The EU rules pass, but the amount due is ${money(r!.xml!)} and the bill says ${money(r!.source!)}.`
+            : "The EU rules pass, but the totals don't match the bill."}
+        </p>
+        {has ? (
           <dl className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[20px] font-bold tnum">
-            <dt className="self-center text-[14px] font-medium">Amount due in the XML</dt>
+            <dt className="self-center text-[14px] font-medium">Amount due in the e-invoice</dt>
             <dd className="text-right">
               <span className="relative inline-block">
-                {money(r.xml)}
+                {money(r!.xml!)}
                 <Ring scale={1.3} width={2.5} delay={120} />
               </span>
             </dd>
-            <dt className="self-center text-[14px] font-medium">Billed</dt>
-            <dd className="text-right">{money(r.source)}</dd>
+            <dt className="self-center text-[14px] font-medium">The bill says</dt>
+            <dd className="text-right">{money(r!.source!)}</dd>
             <dt className="self-center text-[14px] font-medium">Off by</dt>
-            <dd className="text-right text-hold">{money(Math.abs(r.xml - r.source))}</dd>
+            <dd className="text-right text-hold">{money(Math.abs(r!.xml! - r!.source!))}</dd>
           </dl>
         ) : null}
-        {bad.length ? <p className="mt-2 text-[14px]">Doesn&apos;t tie: {bad.join(", ")}.</p> : null}
-        <p className="mt-1 text-[13px] text-ink-muted">Downloads stay locked until it ties.</p>
+        {bad.length ? <p className="mt-2 text-[14px]">Doesn&apos;t match: {bad.join(", ")}.</p> : null}
+        <p className="mt-1 text-[13px] text-ink-muted">Nothing can be downloaded until the totals match.</p>
       </div>
     );
   } else if (outcome === "held_provenance") {
     const u = g.provenance?.untraced[0];
     verdict = (
       <div className="fade-in rounded-md bg-hold-container p-4">
-        <p className="font-extrabold leading-tight text-hold" style={{ fontSize: "var(--text-2xl)" }}>
-          Held
+        <p className="font-extrabold leading-tight text-hold" style={big}>
+          Held back
         </p>
-        <p className="mt-1 text-[15px]">The official rules pass, but the XML contains an ID that isn&apos;t in the source.</p>
+        <p className="mt-1 text-[15px]">The EU rules pass, but the e-invoice has a company ID that isn&apos;t in the original invoice.</p>
         {u ? (
           <p className="mt-2 text-[14px]">
-            {u.field} <span className="font-mono text-[13px]">{u.value}</span> appears nowhere in the source or the declared settings.
+            {u.field} <span className="font-mono text-[13px]">{u.value}</span> appears nowhere in the original or the declared settings.
           </p>
         ) : null}
-        <p className="mt-1 text-[13px] text-ink-muted">Downloads stay locked until every ID traces.</p>
+        <p className="mt-1 text-[13px] text-ink-muted">Nothing can be downloaded until every ID comes from the invoice.</p>
       </div>
     );
   } else if (outcome === "none") {
     verdict = (
       <div>
-        <p className="font-extrabold leading-tight text-ink" style={{ fontSize: "var(--text-2xl)" }}>
-          Not released yet
+        <p className="font-extrabold leading-tight text-ink" style={big}>
+          Not ready
         </p>
-        <p className="mt-1 text-[14px]">Nothing has run on this source yet.</p>
+        <p className="mt-1 text-[14px]">Nothing has run on this invoice yet. Press Run live to start.</p>
       </div>
     );
   } else {
     const n = g.rules?.failed.length ?? 0;
+    const tries = run?.attempts.length ?? 0;
     const final = isLast && run?.verdict === "no_release";
+    const errs = `${n} ${n === 1 ? "error" : "errors"} left`;
     verdict = (
       <div className="fade-in">
-        <p className="font-extrabold leading-tight text-ink" style={{ fontSize: "var(--text-2xl)" }}>
-          {final ? "Not released" : "Not released yet"}
+        <p className="font-extrabold leading-tight text-ink" style={big}>
+          Not ready
         </p>
-        <p className="mt-1 text-[14px]">
+        <p className="mt-1 text-[15px]">
           {final
             ? n > 0
-              ? `${n} official ${n === 1 ? "rule still fails" : "rules still fail"} after ${run!.attempts.length} attempts. Nothing was released.`
-              : `No attempt passed all three checks in ${run!.attempts.length} attempts. Nothing was released.`
+              ? `${errs} after ${tries} tries. Nothing was released.`
+              : `No try passed all 3 checks in ${tries} tries. Nothing was released.`
             : outcome === "no_xml"
-              ? "map.py wrote no XML in this attempt."
+              ? "The AI's code crashed in this try, so there was no invoice to check."
               : outcome === "error"
-                ? "This attempt couldn't finish."
-                : `${n} official ${n === 1 ? "rule still fails" : "rules still fail"}.`}
-          {p.stopped && isLast ? ` Stopped after attempt ${attempt?.n}. Nothing was released.` : ""}
+                ? "The AI sent back no code in this try."
+                : `${errs} in this try. The AI fixes them in the next one.`}
+          {p.stopped && isLast ? ` Stopped after try ${attempt?.n}. Nothing was released.` : ""}
         </p>
       </div>
     );
@@ -426,24 +464,23 @@ export function Sheet(p: SheetProps) {
         <p className="mb-4 flex items-start gap-2 rounded-md bg-surface-2 px-3 py-2.5 text-[14px]">
           <WarningIcon size={16} className="mt-0.5 shrink-0 text-warning" aria-hidden />
           <span>
-            The validator VM isn&apos;t responding, so new results can&apos;t be checked. Showing the last verified result
+            The EU checker in the sandbox isn&apos;t responding, so new results can&apos;t be checked. Showing the last checked result
             {p.validatorDown.since ? `, from ${pdtTime(p.validatorDown.since)}` : ""}.
           </span>
         </p>
       ) : null}
-      <h2 id="release-h" className="text-[18px] font-extrabold">
-        Release
+      <h2 id="release-h" className="text-[13px] font-semibold text-ink-muted">
+        Result{attempt && !showingFool ? ` of try ${attempt.n}` : ""}
       </h2>
-      <p className="mt-0.5 text-[13px] text-ink-muted">Nothing leaves until all three checks pass. The model can&apos;t edit them.</p>
 
       <div className="mt-4">
         {showingFool ? (
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <span className="rounded-sm bg-surface-2 px-2 py-0.5 text-[12px] font-semibold">
-              Test change, not a model run: {fool.result!.label}
+              Test change, not an AI run: {fool.result!.label}
             </span>
             <button type="button" onClick={p.onFoolBack} className="link text-[13px] font-medium">
-              Back to the certified result
+              Back to the real result
             </button>
           </div>
         ) : null}
@@ -463,10 +500,11 @@ export function Sheet(p: SheetProps) {
       </div>
 
       <div className="mt-5">
+        <h3 className="text-[13px] font-semibold text-ink-muted">The 3 checks. The AI can&apos;t change them.</h3>
         <Gates g={g} run={run} checking={p.checking} />
         {earlierHeld && heldRow && heldRow.xml !== null && heldRow.source !== null && attempt?.outcome === "certified" ? (
           <p className="mt-1 flex items-start gap-2 text-[13px]">
-            <MiniRing className="mt-1" /> Held at attempt {earlierHeld.n}: XML {money(heldRow.xml)}, billed {money(heldRow.source)}. Fixed in attempt{" "}
+            <MiniRing className="mt-1" /> Held back at try {earlierHeld.n}: e-invoice {money(heldRow.xml)}, bill {money(heldRow.source)}. Fixed in try{" "}
             {attempt.n}.
           </p>
         ) : null}
@@ -474,11 +512,11 @@ export function Sheet(p: SheetProps) {
 
       <details className="mt-4 border-t border-line pt-3" open={showingFool || undefined}>
         <summary className="flex items-center gap-2 text-[14px] font-semibold">
-          <CaretRightIcon size={14} className="caret" aria-hidden /> Try to fool the gates
+          <CaretRightIcon size={14} className="caret" aria-hidden /> Try to fool the checks
         </summary>
         <div className="pt-2">
           <p className="text-[13px] text-ink-muted">
-            Each button changes the certified XML the way a buggy converter would, then runs all three checks again.
+            Each button plants a bug a careless converter could make in the approved e-invoice, then runs all 3 checks again.
           </p>
           {p.canFool ? (
             <>
@@ -506,12 +544,12 @@ export function Sheet(p: SheetProps) {
               ))}
             </>
           ) : (
-            <p className="mt-2 text-[13px]">Needs a certified result first.</p>
+            <p className="mt-2 text-[13px]">Needs an approved result first.</p>
           )}
           {fool.error ? <p className="mt-2 text-[13px]">Couldn&apos;t run the test change: {fool.error}</p> : null}
           {fool.tally.planted > 0 ? (
             <p className="mt-2 text-[13px] tnum">
-              Planted: {fool.tally.planted}. Passed the official rules: {fool.tally.passed}. Held: {fool.tally.held}.
+              Bugs planted: {fool.tally.planted}. Passed the EU rules anyway: {fool.tally.passed}. Held back: {fool.tally.held}.
             </p>
           ) : null}
         </div>
