@@ -5,6 +5,7 @@ import path from "node:path";
 import type { Source } from "./sources";
 import type { Attempt } from "./runlog";
 import { formatEUR } from "./money";
+import { XMLParser } from "fast-xml-parser";
 
 export const SYSTEM_PROMPT = `You write one complete Python 3.13 program, map.py, that converts an invoice from a billing system into a Peppol BIS Billing 3.0 e-invoice (UBL 2.1, EN 16931).
 
@@ -24,12 +25,51 @@ The program must:
 - read the source invoice from the file named in SOURCE_FILE (in the current directory) and the declared trading-partner configuration from ./partners.json;
 - write ./out.xml: one UBL 2.1 <Invoice> that conforms to Peppol BIS Billing 3.0;
 - use only the Python standard library (xml.etree.ElementTree, json, csv, decimal, datetime, re). There is no network: never try to download, install or fetch anything;
+- when the source is XML, use the namespace URIs declared on its root element; optional elements may be missing, so check a find() result before using it, and only call Decimal on non-empty, stripped text;
 - compute money with decimal.Decimal and write every amount with exactly 2 decimals; amounts in cents must be divided by 100;
 - take every identifier (VAT IDs, Peppol endpoint IDs with their schemeID, IBAN, party names, buyer reference) from the source or from partners.json. Never invent an identifier;
 - keep the invoice faithful to the source: the same lines, the same discounts, the same VAT, and the amount due must equal what the source says was billed. A document-level discount becomes a document-level AllowanceCharge (ChargeIndicator false) with its own TaxCategory;
 - get the line arithmetic right: each InvoiceLine's LineExtensionAmount = InvoicedQuantity x PriceAmount (/ BaseQuantity) - its own line-level allowances + its own line-level charges. If the source spreads an invoice-wide discount over the lines, still put it in ONE document-level AllowanceCharge and keep the line amounts undiscounted;
 - use CustomizationID urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0 and ProfileID urn:fdc:peppol.eu:2017:poacc:billing:01:1.0;
 - follow the element order of the reference invoice exactly (UBL is order-sensitive), register the cac/cbc namespaces, and write the XML declaration.`;
+
+/** For XML sources: every element path with a sample value, so the model gets the nesting right. */
+export function xmlOutline(raw: string, limit = 160): string {
+  if (!raw.trimStart().startsWith("<")) return "";
+  let doc: unknown;
+  try {
+    doc = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@", parseTagValue: false, trimValues: true }).parse(raw);
+  } catch {
+    return "";
+  }
+  const lines: string[] = [];
+  const seen = new Set<string>();
+  const walk = (node: unknown, path: string) => {
+    if (lines.length >= limit) return;
+    if (Array.isArray(node)) {
+      node.slice(0, 2).forEach((n, i) => walk(n, `${path}[${i + 1}]`));
+      return;
+    }
+    if (node !== null && typeof node === "object") {
+      for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+        if (k.startsWith("?") || k.startsWith("@xmlns")) continue;
+        walk(v, k === "#text" ? path : `${path}/${k}`);
+      }
+      return;
+    }
+    const key = path.replace(/\[\d+\]/g, "[n]");
+    if (seen.has(key) && !/\[2\]/.test(path)) return;
+    seen.add(key);
+    lines.push(`${path} = ${String(node).slice(0, 60)}`);
+  };
+  walk(doc, "");
+  return lines.join("\n");
+}
+
+function sourceMap(source: Source): string[] {
+  const outline = xmlOutline(source.raw);
+  return outline ? [`--- every element path in ${source.fileName} with a sample value (namespace prefixes as in the file; [n] = repeated) ---`, outline] : [];
+}
 
 function reference(): string {
   return readFileSync(path.join(process.cwd(), "samples", "peppol-base-example.xml"), "utf8");
@@ -40,6 +80,7 @@ export function firstPrompt(source: Source): string {
     `SOURCE_FILE: ${source.fileName}  (${source.label})`,
     `--- ${source.fileName} ---`,
     source.raw.trim(),
+    ...sourceMap(source),
     `--- partners.json ---`,
     JSON.stringify(source.partners, null, 2),
     `--- reference: an official Peppol BIS 3.0 example invoice. Follow its structure and element order; its values are NOT ours ---`,
@@ -56,6 +97,11 @@ const RULE_NOTES: Record<string, string> = {
   "BR-CO-15": "TaxInclusiveAmount = TaxExclusiveAmount + the TaxTotal TaxAmount (in the document currency).",
   "BR-CO-16": "PayableAmount = TaxInclusiveAmount - PrepaidAmount + PayableRoundingAmount.",
   "BR-S-08": "For each standard-rated VAT rate, TaxSubtotal/TaxableAmount = sum of that rate's line amounts - document allowances of that rate + document charges of that rate.",
+  "BR-CO-14": "TaxTotal/TaxAmount must equal the sum of all TaxSubtotal/TaxAmount values.",
+  "BR-CO-17": "Each TaxSubtotal/TaxAmount = its TaxableAmount x its TaxCategory/Percent / 100, rounded to 2 decimals.",
+  "BR-45": "Every TaxSubtotal needs a TaxableAmount (with currencyID): the sum of the line amounts in that VAT category and rate, after document-level allowances and charges.",
+  "BR-46": "Every TaxSubtotal needs a TaxAmount (with currencyID): TaxableAmount x Percent / 100.",
+  "BR-S-09": "For standard-rated VAT, each TaxSubtotal/TaxAmount = TaxableAmount x Percent / 100.",
   "BR-06": "The seller name goes in AccountingSupplierParty/Party/PartyLegalEntity/RegistrationName.",
   "BR-07": "The buyer name goes in AccountingCustomerParty/Party/PartyLegalEntity/RegistrationName.",
 };
@@ -97,6 +143,6 @@ export function fixPrompt(source: Source, last: Attempt, stuck = false): string 
     for (const u of last.provenance.untraced) lines.push(`  ${u.field}: ${u.value}`);
   }
   if (last.xml) lines.push("", "--- out.xml that your map.py wrote ---", last.xml.length > 14_000 ? last.xml.slice(0, 14_000) + "\n(truncated)" : last.xml.trim());
-  lines.push("", `--- ${source.fileName} (unchanged) ---`, source.raw.trim(), `--- partners.json ---`, JSON.stringify(source.partners, null, 2), "", stuck ? "Rethink the approach and rewrite map.py in full: reply with one ```python block containing the whole program." : "Fix map.py. Reply with SEARCH/REPLACE edit blocks.");
+  lines.push("", `--- ${source.fileName} (unchanged) ---`, source.raw.trim(), ...sourceMap(source), `--- partners.json ---`, JSON.stringify(source.partners, null, 2), "", stuck ? "Rethink the approach and rewrite map.py in full: reply with one ```python block containing the whole program." : "Fix map.py. Reply with SEARCH/REPLACE edit blocks.");
   return lines.join("\n");
 }

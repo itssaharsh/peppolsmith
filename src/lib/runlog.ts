@@ -51,6 +51,7 @@ export type RunLog = {
   verdict: "running" | "certified" | "held" | "no_release" | "error";
   xml?: string; // the released XML (certified) or the last XML produced
   sig?: string; // server signature over the attempts (live runs only)
+  release?: string; // token for POST /api/release (live runs only)
 };
 
 export type { RuleFailure };

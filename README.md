@@ -15,7 +15,7 @@ Peppolsmith writes the missing converter:
 1. **An agent writes `map.py`**: a small Python program that turns your source invoice into Peppol UBL.
 2. **It runs in a CreateOS sandbox VM with the network off**, as an unprivileged user, with a 30 s limit.
 3. **The official rules check the XML inside the VM.** These are the CEN EN16931 rules (validation-1.3.17) and the Peppol BIS Billing 3.0 rules (v3.0.20), pinned by sha256 and re-checked against a manifest before every run.
-4. **Failed rule IDs go back to the model.** Each comes with the rule's official message, its XPath test and the XML the program wrote. The model replies with code edits. This repeats for up to 6 attempts.
+4. **Failed rule IDs go back to the model.** Each comes with the rule's official message, its XPath test and the XML the program wrote. The model replies with code edits. This repeats for up to 8 attempts.
 5. **Two checks the model can't edit decide the release:**
    - **Reconciliation:** lines, net total, VAT per rate and amount due must tie to a human-written contract of the source invoice.
    - **Provenance:** every party name, VAT ID, Peppol ID and IBAN must come from the source or the declared trading-partner settings.

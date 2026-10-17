@@ -359,7 +359,7 @@ export function Sheet(p: SheetProps) {
           Working on try {(run?.attempts.length ?? 0) + 1}
         </p>
         {p.runningText ? <p className="shimmer mt-1 text-[15px] font-semibold tnum">{p.runningText}</p> : null}
-        <p className="mt-1 text-[14px]">Usually 20 to 90 seconds per try; up to 6 tries. The checks run as soon as the code produces an invoice.</p>
+        <p className="mt-1 text-[14px]">Usually 20 to 90 seconds per try; up to 8 tries. The checks run as soon as the code produces an invoice.</p>
       </div>
     );
   } else if (outcome === "certified") {

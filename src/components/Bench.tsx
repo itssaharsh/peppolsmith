@@ -89,6 +89,23 @@ export function Bench() {
   const loadHealthRef = useRef<() => void>(() => undefined);
   const abortRef = useRef<AbortController | null>(null);
   const stopRef = useRef(false);
+  const curRunRef = useRef<RunLog | null>(null);
+  // free the live-run lock right away when we stop or the tab closes (a small beacon; the lock would go stale anyway)
+  const releaseLock = useCallback(() => {
+    const r = curRunRef.current;
+    curRunRef.current = null;
+    if (!r || r.verdict !== "running" || !r.release) return;
+    const body = new Blob([JSON.stringify({ runId: r.runId, token: r.release })], { type: "application/json" });
+    try {
+      if (!navigator.sendBeacon?.("/api/release", body)) void fetch("/api/release", { method: "POST", body, keepalive: true });
+    } catch {
+      /* best effort */
+    }
+  }, []);
+  useEffect(() => {
+    window.addEventListener("pagehide", releaseLock);
+    return () => window.removeEventListener("pagehide", releaseLock);
+  }, [releaseLock]);
 
   /* ---------- load replays, URL state, health ---------- */
   useEffect(() => {
@@ -245,6 +262,7 @@ export function Bench() {
         setView("custom");
         window.history.replaceState(null, "", window.location.pathname);
       }
+      curRunRef.current = cur;
       setLive({ source: src, custom, fileName: upload?.fileName, run: cur, phase: "stepping", startedAt: t0, stepStartedAt: Date.now() });
       while (cur.verdict === "running" && !stopRef.current) {
         const step = await postJson<RunLog>("/api/step", { run: cur }, ctrl.signal);
@@ -254,6 +272,7 @@ export function Bench() {
           return;
         }
         cur = step.data as RunLog;
+        curRunRef.current = cur.verdict === "running" ? cur : null;
         const lastA = cur.attempts[cur.attempts.length - 1];
         if (lastA) setAnnounce(announceFor(lastA));
         setSelected(null);
@@ -312,6 +331,7 @@ export function Bench() {
   const stop = () => {
     stopRef.current = true;
     abortRef.current?.abort();
+    releaseLock();
   };
 
   const resetAll = useCallback(() => {

@@ -9,7 +9,7 @@ import { reconcile, provenance } from "./gates";
 import type { Source } from "./sources";
 import type { Attempt, RuleCount, Step } from "./runlog";
 
-export const MAX_ATTEMPTS = 6;
+export const MAX_ATTEMPTS = 8;
 /** Model time per attempt, so a step (model + VM run + rules) stays inside the 300 s function limit. */
 const MODEL_BUDGET_MS = 190_000;
 
@@ -42,7 +42,7 @@ export function extractCode(text: string): string | null {
 }
 
 /** Calls the providers in order until one returns a usable code block. */
-export async function writeCode(userPrompt: string, deadline = Date.now() + 200_000): Promise<ModelReply> {
+export async function writeCode(userPrompt: string, deadline = Date.now() + 200_000, temperature = 0.2): Promise<ModelReply> {
   const errors: string[] = [];
   for (const p of PROVIDERS) {
     const budget = Math.min(p.timeoutMs, deadline - Date.now());
@@ -64,7 +64,7 @@ export async function writeCode(userPrompt: string, deadline = Date.now() + 200_
           model: p.body?.models ? undefined : p.id,
           ...p.body,
           max_tokens: 8000,
-          temperature: 0.2,
+          temperature,
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: userPrompt },
@@ -119,7 +119,9 @@ export async function attempt(sb: Sandbox, runId: string, source: Source, previo
   // 1. write (or fix) map.py
   let reply: ModelReply;
   try {
-    reply = await writeCode(last ? fixPrompt(source, last, isStuck(previous)) : firstPrompt(source), deadline);
+    const stuck = isStuck(previous);
+    // a stalled fix asks for a full rewrite at a higher temperature, so the next program is actually different
+    reply = await writeCode(last ? fixPrompt(source, last, stuck) : firstPrompt(source), deadline, stuck ? 0.7 : 0.2);
   } catch (e) {
     step({ id: "write", status: "fail", ms: Date.now() - t0, who: "model", note: (e as Error).message });
     return blank(n, t0, steps, "error", (e as Error).message, last?.code ?? "");
@@ -136,7 +138,7 @@ export async function attempt(sb: Sandbox, runId: string, source: Source, previo
   if (!newCode && last) {
     // the edits didn't match the file: ask once for the whole program instead
     try {
-      const again = await writeCode(fixPrompt(source, last, true), deadline);
+      const again = await writeCode(fixPrompt(source, last, true), deadline, 0.7);
       newCode = extractCode(again.text);
       reply = { ...again, ms: reply.ms + again.ms, tokensIn: reply.tokensIn + again.tokensIn, tokensOut: reply.tokensOut + again.tokensOut, costUsd: reply.costUsd + again.costUsd };
       editNote = `${editNote}; edits didn't match, asked for the whole file`;

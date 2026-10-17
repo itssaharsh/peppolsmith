@@ -50,7 +50,7 @@ const STEPS = [
   },
   {
     title: "It runs locked, and fixes itself",
-    body: "The program runs in a locked CreateOS sandbox with no internet. The official EU checker lists every error; the AI reads them and fixes its own code, up to 6 tries.",
+    body: "The program runs in a locked CreateOS sandbox with no internet. The official EU checker lists every error; the AI reads them and fixes its own code, up to 8 tries.",
   },
   {
     title: "Released only if 3 checks pass",

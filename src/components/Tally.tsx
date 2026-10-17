@@ -49,8 +49,8 @@ export function Tally({ run, selected, onSelect, pending, stopped }: Props) {
   const attempts = run.attempts;
   const counts = attempts.map((a) => failedCount(a) ?? 0);
   const max = Math.max(1, ...counts);
-  const slots = 6;
   const used = attempts.length + (pending ? 1 : 0);
+  const slots = Math.max(6, used);
   const finished = run.verdict !== "running" && !pending;
 
   function onKey(e: KeyboardEvent<HTMLDivElement>) {
@@ -175,8 +175,8 @@ export function Tally({ run, selected, onSelect, pending, stopped }: Props) {
             {stopped
               ? `Stopped after try ${attempts.length}.`
               : run.verdict === "certified"
-                ? `Passed on try ${attempts.length}. The AI gets up to 6 tries.`
-                : `Ended after ${attempts.length} ${attempts.length === 1 ? "try" : "tries"}. The AI gets up to 6.`}
+                ? `Passed on try ${attempts.length}. The AI gets up to 8 tries.`
+                : `Ended after ${attempts.length} ${attempts.length === 1 ? "try" : "tries"}. The AI gets up to 8.`}
           </div>
         ) : null}
       </div>

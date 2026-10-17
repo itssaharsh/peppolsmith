@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { detectKind, sourceFromUpload, MAX_UPLOAD_BYTES } from "../src/lib/sources";
-import { signRun, verifyRun } from "../src/lib/sign";
+import { releaseToken, signRun, verifyRelease, verifyRun } from "../src/lib/sign";
 import type { RunLog } from "../src/lib/runlog";
 
 const example = (f: string) => readFileSync(`public/examples/${f}`, "utf8");
@@ -41,5 +41,8 @@ describe("uploaded invoices", () => {
     expect(verifyRun(signed)).toBe(true);
     expect(verifyRun({ ...signed, source: { ...signed.source, raw: raw.replace("212,00", "2,00") } })).toBe(false);
     expect(verifyRun({ ...signed, verdict: "certified" })).toBe(false);
+    expect(signed.release).toBe(releaseToken("run-0123456789"));
+    expect(verifyRelease("run-0123456789", signed.release)).toBe(true);
+    expect(verifyRelease("run-9999999999", signed.release)).toBe(false);
   });
 });

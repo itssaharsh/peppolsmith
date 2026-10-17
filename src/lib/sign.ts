@@ -20,7 +20,19 @@ function digest(run: RunLog): string {
 export function signRun(run: RunLog): RunLog {
   const { sig: _drop, ...rest } = run;
   void _drop;
-  return { ...rest, sig: digest(rest as RunLog) };
+  return { ...rest, sig: digest(rest as RunLog), release: releaseToken(run.runId) };
+}
+
+/** A small token that lets the browser give up its run's lock when the tab closes (sendBeacon can't carry a whole run log). */
+export function releaseToken(runId: string): string {
+  return createHmac("sha256", secret()).update(`${runId}|release`).digest("hex");
+}
+
+export function verifyRelease(runId: string, token: unknown): boolean {
+  if (typeof token !== "string" || token.length !== 64) return false;
+  const want = Buffer.from(releaseToken(runId), "hex");
+  const got = Buffer.from(token, "hex");
+  return got.length === want.length && timingSafeEqual(got, want);
 }
 
 export function verifyRun(run: RunLog): boolean {

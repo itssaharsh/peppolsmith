@@ -36,7 +36,7 @@ export function Checklist({ run, stepIndex, elapsedMs }: { run: RunLog | null; s
     <section aria-label="Running steps" className="fade-in">
       <h2 className="text-[15px] font-bold">Try {(run?.attempts.length ?? 0) + 1} is running</h2>
       <p className="mt-1 text-[13px] text-ink-muted">
-        Usually 20 to 90 seconds per try; up to 6 tries. The steps report back together when a try finishes, so the highlighted step is an
+        Usually 20 to 90 seconds per try; up to 8 tries. The steps report back together when a try finishes, so the highlighted step is an
         estimate.
       </p>
       <ol className="mt-3">
