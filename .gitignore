@@ -74,3 +74,10 @@ storage_state*.json
 .env
 .env.*
 !.env.example
+
+# build-tool records and planning notes stay local
+.prod-build/
+docs/memory/
+AGENTS.md
+CLAUDE.md
+ARCHITECTURE.md

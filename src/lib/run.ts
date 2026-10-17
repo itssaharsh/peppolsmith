@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import artefacts from "../../vm/artefacts.json";
 import { attempt, isFinal } from "./agent";
 import { EGRESS_LOCK, IMAGE, SHAPE, resumeGolden, type Log } from "./sandbox";
-import { loadSource, type SourceKind } from "./sources";
+import { loadSource, sourceFromUpload, type Source, type SourceKind } from "./sources";
 import type { Attempt, RunLog } from "./runlog";
 
 export function newRunId(): string {
@@ -16,8 +16,13 @@ export const RULESETS: RunLog["rulesets"] = [
   { name: "Peppol BIS Billing 3.0", version: "v3.0.20", file: "PEPPOL-EN16931-UBL.sch", sha256: sha("PEPPOL-EN16931-UBL.sch") },
 ];
 
-export async function startRun(kind: SourceKind, _log?: Log): Promise<RunLog> {
-  const source = loadSource(kind);
+/** The source a run log describes: an uploaded file (carried, signed, in the log) or a bundled sample. */
+export function sourceOf(runlog: RunLog): Source {
+  return runlog.source.custom && runlog.source.raw ? sourceFromUpload(runlog.source.raw) : loadSource(runlog.source.kind);
+}
+
+export async function startRun(kind: SourceKind, _log?: Log, upload?: string): Promise<RunLog> {
+  const source = upload !== undefined ? sourceFromUpload(upload) : loadSource(kind);
   const golden = await resumeGolden();
   if (!golden) throw new Error("the validator VM is not available");
   const { sandbox, resumeMs } = golden;
@@ -25,7 +30,7 @@ export async function startRun(kind: SourceKind, _log?: Log): Promise<RunLog> {
     runId: newRunId(),
     mode: "live",
     recordedAt: new Date().toISOString(),
-    source: { kind, label: source.label, provenance: source.provenance, ref: source.ref, fileName: source.fileName, raw: source.raw },
+    source: { kind: source.kind, label: source.label, provenance: source.provenance, ref: source.ref, fileName: source.fileName, raw: source.raw, custom: upload !== undefined || undefined },
     model: { id: "", fallbackUsed: false, calls: 0, costUsd: 0 },
     sandbox: {
       vmId: sandbox.id,
@@ -58,7 +63,7 @@ export function verdictOf(attempts: Attempt[]): RunLog["verdict"] {
 /** Runs one more attempt on the run's VM and returns the updated run log. */
 export async function stepRun(runlog: RunLog, log?: Log): Promise<RunLog> {
   if (runlog.verdict !== "running") return runlog;
-  const source = loadSource(runlog.source.kind);
+  const source = sourceOf(runlog);
   const golden = await resumeGolden();
   if (!golden) throw new Error("the validator VM is not available");
   const sandbox = golden.sandbox;

@@ -32,7 +32,7 @@ export type RunLog = {
   runId: string;
   mode: "live" | "replay" | "preview";
   recordedAt: string;
-  source: { kind: SourceKind; label: string; provenance: string; ref: string; fileName?: string; raw?: string };
+  source: { kind: SourceKind; label: string; provenance: string; ref: string; fileName?: string; raw?: string; custom?: boolean };
   model: { id: string; fallbackUsed: boolean; calls: number; costUsd: number };
   sandbox: {
     vmId: string;

@@ -1,0 +1,5 @@
+invoice_no;invoice_date;due_date;customer_name;customer_vat;customer_street;customer_postcode;customer_city;customer_country;line;description;qty;unit_price;vat_rate
+2026-0431;17/10/2026;16/11/2026;Studio Noordzee BV;BE0649375210;Zeedijk 120;8400;Oostende;BE;1;Sandwich lunch, 20 persons;1;212,00;6%
+2026-0431;17/10/2026;16/11/2026;Studio Noordzee BV;BE0649375210;Zeedijk 120;8400;Oostende;BE;2;Coffee and tea service, full day;1;78,00;21%
+2026-0431;17/10/2026;16/11/2026;Studio Noordzee BV;BE0649375210;Zeedijk 120;8400;Oostende;BE;3;Delivery and set-up;1;35,00;21%
+2026-0431;17/10/2026;16/11/2026;Studio Noordzee BV;BE0649375210;Zeedijk 120;8400;Oostende;BE;4;Seasonal soup, 5 L;2;27,40;6%

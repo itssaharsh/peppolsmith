@@ -1,6 +1,6 @@
 // POST /api/run {source: "stripe" | "cii" | "csv"} -> a new live run log (or 409 busy / 429 daily cap).
 import { startRun } from "@/lib/run";
-import { isSourceKind } from "@/lib/sources";
+import { isSourceKind, sourceFromUpload } from "@/lib/sources";
 import { acquireRun } from "@/lib/guard";
 import { client } from "@/lib/sandbox";
 import { signRun } from "@/lib/sign";
@@ -8,10 +8,25 @@ import { signRun } from "@/lib/sign";
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as { source?: unknown };
-  if (!isSourceKind(body.source)) return Response.json({ error: "Pick one of the three sample sources." }, { status: 400 });
+  const text = await request.text();
+  if (text.length > 220_000) return Response.json({ error: "The file is too large: send one invoice, at most 100 KB." }, { status: 413 });
+  let body: { source?: unknown; upload?: unknown };
   try {
-    const run = await startRun(body.source);
+    body = JSON.parse(text) as { source?: unknown; upload?: unknown };
+  } catch {
+    body = {};
+  }
+  const upload = typeof body.upload === "string" ? body.upload : undefined;
+  if (upload === undefined && !isSourceKind(body.source)) return Response.json({ error: "Upload an invoice or pick one of the samples." }, { status: 400 });
+  if (upload !== undefined) {
+    try {
+      sourceFromUpload(upload); // readable 400 before any VM or model work
+    } catch (e) {
+      return Response.json({ error: (e as Error).message }, { status: 400 });
+    }
+  }
+  try {
+    const run = await startRun(isSourceKind(body.source) ? body.source : "stripe", undefined, upload);
     const sb = await client().getSandbox(run.sandbox.vmId);
     const lock = await acquireRun(sb, run.runId);
     if (!lock.ok) {

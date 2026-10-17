@@ -139,6 +139,55 @@ export function loadSource(kind: SourceKind, variant: "main" | "second" = "main"
   return { kind, label: meta.label, provenance: meta.provenance, ref, fileName: meta.fileName, raw, contract, partners: (partnersFile as Record<string, unknown>)[kind] };
 }
 
+export const MAX_UPLOAD_BYTES = 100_000;
+const UPLOAD_LABEL: Record<SourceKind, string> = { stripe: "Your invoice (Stripe JSON)", cii: "Your invoice (CII XML)", csv: "Your invoice (CSV export)" };
+
+/** Which of the three formats an uploaded file is, from its content. */
+export function detectKind(raw: string): SourceKind | null {
+  const t = raw.trimStart();
+  if (t.startsWith("{")) {
+    try {
+      const d = JSON.parse(t) as { object?: unknown };
+      return d.object === "invoice" ? "stripe" : null;
+    } catch {
+      return null;
+    }
+  }
+  if (t.startsWith("<")) return /CrossIndustryInvoice/.test(t.slice(0, 2000)) ? "cii" : null;
+  const header = t.split(/\r?\n/, 1)[0] ?? "";
+  return header.includes(";") && header.includes("invoice_no") ? "csv" : null;
+}
+
+/**
+ * An uploaded invoice as a source. Its reference totals come from the same parsers as the samples; Peppol IDs and
+ * seller details the invoice doesn't carry come from the declared settings for its format.
+ */
+export function sourceFromUpload(raw: string): Source {
+  if (Buffer.byteLength(raw, "utf8") > MAX_UPLOAD_BYTES) throw new Error(`The file is larger than ${MAX_UPLOAD_BYTES / 1000} KB.`);
+  const kind = detectKind(raw);
+  if (!kind) throw new Error("This doesn't look like a Stripe invoice JSON, a CII e-invoice XML or the CSV export layout.");
+  let parsed: { contract: SourceContract; ref: string };
+  try {
+    parsed = kind === "stripe" ? stripeContract(raw) : kind === "cii" ? ciiContract(raw) : csvContract(raw);
+  } catch (e) {
+    throw new Error(`The ${UPLOAD_LABEL[kind].replace("Your invoice ", "")} couldn't be read: ${(e as Error).message}`);
+  }
+  const c = parsed.contract;
+  if (!c.lines.length || !Number.isFinite(c.payable) || c.lines.some((l) => !Number.isFinite(l.grossNet))) {
+    throw new Error("The invoice was read, but its lines or totals are missing or not numbers.");
+  }
+  return {
+    kind,
+    label: UPLOAD_LABEL[kind],
+    provenance: "Uploaded by you. Seller details and Peppol IDs the file doesn't carry come from the declared settings for this format.",
+    ref: String(parsed.ref ?? "uploaded invoice"),
+    fileName: META[kind].fileName,
+    raw,
+    contract: c,
+    partners: (partnersFile as Record<string, unknown>)[kind],
+  };
+}
+
 export function isSourceKind(x: unknown): x is SourceKind {
   return typeof x === "string" && (SOURCE_KINDS as string[]).includes(x);
 }

@@ -11,7 +11,7 @@ export const maxDuration = 300;
 
 export async function POST(request: Request) {
   const text = await request.text();
-  if (text.length > 400_000) return Response.json({ error: "Run log too large." }, { status: 413 });
+  if (text.length > 1_000_000) return Response.json({ error: "Run log too large." }, { status: 413 });
   let run: RunLog;
   try {
     run = (JSON.parse(text) as { run: RunLog }).run;

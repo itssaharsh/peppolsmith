@@ -1,14 +1,17 @@
 // Drives one full run from the terminal: npx tsx scripts/run-sample.ts <stripe|cii|csv> [--max N] [--record]
+// or on any invoice file, as the upload box does: npx tsx scripts/run-sample.ts upload --upload <file>
 // --record saves the run log as public/replay/<kind>.json (the labelled replay the page shows by default).
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { startRun, stepRun } from "../src/lib/run";
 import { isSourceKind } from "../src/lib/sources";
 import { formatEUR } from "../src/lib/money";
 
 if (existsSync(".env")) process.loadEnvFile(".env");
+const uploadArg = process.argv.indexOf("--upload");
+const upload = uploadArg > 0 ? readFileSync(process.argv[uploadArg + 1], "utf8") : undefined;
 const kind = process.argv[2];
-if (!isSourceKind(kind)) {
-  console.error("usage: run-sample.ts <stripe|cii|csv> [--max N] [--record]");
+if (!isSourceKind(kind) && upload === undefined) {
+  console.error("usage: run-sample.ts <stripe|cii|csv> [--max N] [--record]   or   run-sample.ts upload --upload <file> [--max N]");
   process.exit(2);
 }
 const maxArg = process.argv.indexOf("--max");
@@ -16,7 +19,7 @@ const max = maxArg > 0 ? Number(process.argv[maxArg + 1]) : 6;
 const log = (l: string) => console.log(`  · ${l}`);
 
 async function main() {
-  let run = await startRun(kind as never, log);
+  let run = await startRun((isSourceKind(kind) ? kind : "stripe") as never, log, upload);
   console.log(`run ${run.runId} on ${run.sandbox.vmId} (${run.source.label}${run.sandbox.resumeMs != null ? `, resumed in ${run.sandbox.resumeMs} ms` : ""})`);
   while (run.verdict === "running" && run.attempts.length < max) {
     run = await stepRun(run, log);
@@ -33,7 +36,7 @@ async function main() {
   console.log(`verdict ${run.verdict}; model calls ${run.model.calls}; cost $${run.model.costUsd.toFixed(4)}`);
   mkdirSync(".runs", { recursive: true });
   writeFileSync(`.runs/${run.runId}.json`, JSON.stringify(run, null, 2));
-  if (process.argv.includes("--record")) {
+  if (process.argv.includes("--record") && !upload) {
     mkdirSync("public/replay", { recursive: true });
     writeFileSync(`public/replay/${kind}.json`, JSON.stringify({ ...run, mode: "replay" }, null, 2));
     console.log(`recorded public/replay/${kind}.json`);
