@@ -166,15 +166,21 @@ export function sourceFromUpload(raw: string): Source {
   if (Buffer.byteLength(raw, "utf8") > MAX_UPLOAD_BYTES) throw new Error(`The file is larger than ${MAX_UPLOAD_BYTES / 1000} KB.`);
   const kind = detectKind(raw);
   if (!kind) throw new Error("This doesn't look like a Stripe invoice JSON, a CII e-invoice XML or the CSV export layout.");
+  const what = { stripe: "a Stripe invoice JSON", cii: "a CII e-invoice XML", csv: "our CSV export layout" }[kind];
   let parsed: { contract: SourceContract; ref: string };
   try {
     parsed = kind === "stripe" ? stripeContract(raw) : kind === "cii" ? ciiContract(raw) : csvContract(raw);
   } catch (e) {
-    throw new Error(`The ${UPLOAD_LABEL[kind].replace("Your invoice ", "")} couldn't be read: ${(e as Error).message}`);
+    const detail = /not a decimal amount: (.*)/.exec((e as Error).message);
+    throw new Error(
+      detail
+        ? `This looks like ${what}, but "${detail[1].slice(0, 40)}" isn't an amount.`
+        : `This looks like ${what}, but its invoice lines or totals are missing, so there is nothing to convert.`,
+    );
   }
   const c = parsed.contract;
   if (!c.lines.length || !Number.isFinite(c.payable) || c.lines.some((l) => !Number.isFinite(l.grossNet))) {
-    throw new Error("The invoice was read, but its lines or totals are missing or not numbers.");
+    throw new Error(`This looks like ${what}, but its invoice lines or totals are missing or aren't numbers.`);
   }
   return {
     kind,
