@@ -47,6 +47,7 @@ def failures(svrl_text, ruleset):
                 "flag": fa.get("flag") or "fatal",
                 "message": text[:400],
                 "location": fa.get("location") or "",
+                "test": (fa.get("test") or "")[:400],
             }
         )
     return out

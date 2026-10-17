@@ -72,3 +72,4 @@ storage_state*.json
 .env
 .env.*
 !.env.example
+.runs/

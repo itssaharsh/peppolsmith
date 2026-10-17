@@ -30,9 +30,10 @@ export type Source = {
   partners: unknown;
 };
 
-const META: Record<SourceKind, { file: string; fileName: string; label: string; provenance: string }> = {
+const META: Record<SourceKind, { file: string; second?: string; fileName: string; label: string; provenance: string }> = {
   stripe: {
     file: "samples/stripe-invoice.json",
+    second: "samples/second/stripe-invoice-2.json",
     fileName: "source.json",
     label: "Stripe test invoice",
     provenance: "A real Stripe Invoice object from a test-mode sandbox (fictional Belgian buyer, 10% coupon), retrieved with the Stripe API.",
@@ -45,6 +46,7 @@ const META: Record<SourceKind, { file: string; fileName: string; label: string; 
   },
   csv: {
     file: "samples/billing-export.csv",
+    second: "samples/second/billing-export-2.csv",
     fileName: "source.csv",
     label: "Billing app CSV export",
     provenance: "A home-grown billing export in European format (semicolons, comma decimals, two VAT rates), written by us.",
@@ -122,9 +124,17 @@ function csvContract(raw: string): { contract: SourceContract; ref: string } {
   return { ref: rows[0][col("invoice_no")], contract: { currency: "EUR", lines, netTotal, vatTotal, vatByRate, payable: netTotal + vatTotal } };
 }
 
-export function loadSource(kind: SourceKind): Source {
+/** True when a second invoice of this kind is bundled for the model-off converter. */
+export function hasSecond(kind: SourceKind): boolean {
+  return Boolean(META[kind].second);
+}
+
+/** `second` loads a different invoice of the same kind and buyer: the model-off converter's test. */
+export function loadSource(kind: SourceKind, variant: "main" | "second" = "main"): Source {
   const meta = META[kind];
-  const raw = readFileSync(path.join(process.cwd(), meta.file), "utf8");
+  const file = variant === "second" ? meta.second : meta.file;
+  if (!file) throw new Error(`no second ${kind} invoice is bundled`);
+  const raw = readFileSync(path.join(process.cwd(), file), "utf8");
   const { contract, ref } = kind === "stripe" ? stripeContract(raw) : kind === "cii" ? ciiContract(raw) : csvContract(raw);
   return { kind, label: meta.label, provenance: meta.provenance, ref, fileName: meta.fileName, raw, contract, partners: (partnersFile as Record<string, unknown>)[kind] };
 }

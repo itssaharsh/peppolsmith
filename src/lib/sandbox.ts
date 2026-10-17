@@ -64,6 +64,21 @@ export async function ensureGolden(log: Log = quiet): Promise<GoldenInfo> {
   return { sandbox: sb, created: false, resumeMs };
 }
 
+/** For public routes: the golden VM, resumed if paused, never created (creation is a scripted, rate-limited step). */
+export async function resumeGolden(): Promise<{ sandbox: Sandbox; resumeMs: number | null } | null> {
+  const sb = await findGolden();
+  if (!sb || sb.status === "error") return null;
+  if (sb.status === "pausing") await sb.waitUntilPaused();
+  if (sb.status === "paused") {
+    const t = Date.now();
+    await sb.resume();
+    await sb.waitUntilRunning();
+    return { sandbox: sb, resumeMs: Date.now() - t };
+  }
+  if (sb.status !== "running") await sb.waitUntilRunning();
+  return { sandbox: sb, resumeMs: null };
+}
+
 async function createGolden(log: Log): Promise<Sandbox> {
   log(`creating ${IMAGE} ${SHAPE} VM "${GOLDEN_NAME}"`);
   const sb = await client().createSandbox(
@@ -112,6 +127,21 @@ export async function bootstrap(sb: Sandbox, log: Log = quiet): Promise<SelfTest
   return st;
 }
 
+/** Replaces validate.py in a running golden VM (no network needed), re-seals the manifest and self-tests. */
+export async function updateValidator(sb: Sandbox, log: Log = quiet): Promise<SelfTest> {
+  await sb.sh("chmod u+w /opt/val", { label: "unseal" });
+  await sb.sh("chmod u+w /opt/val/validate.py /opt/val/MANIFEST", { label: "unseal files" });
+  await sb.files.upload("/opt/val/validate.py", validatorSource());
+  await sb.sh(
+    "cd /opt/val && sha256sum *.xslt *.xsl *.sch *.xml validate.py > MANIFEST && chown -R root:root /opt/val && chmod -R a-w /opt/val",
+    { label: "reseal manifest" },
+  );
+  const st = await selfTest(sb);
+  log(`validator updated; self-test ${st.ok ? "passed" : "FAILED"}: ${JSON.stringify(st.results)}`);
+  if (!st.ok) throw new Error("validator self-test failed after update");
+  return st;
+}
+
 export type SelfTest = { ok: boolean; results: Record<string, string[]> };
 
 export async function selfTest(sb: Sandbox): Promise<SelfTest> {
@@ -156,7 +186,7 @@ export async function runMap(sb: Sandbox, runId: string): Promise<MapRun> {
   };
 }
 
-export type RuleFailure = { id: string; set: string; flag: string; message: string; location: string };
+export type RuleFailure = { id: string; set: string; flag: string; message: string; location: string; test?: string };
 export type Validation = {
   wellFormed: boolean;
   error?: string;

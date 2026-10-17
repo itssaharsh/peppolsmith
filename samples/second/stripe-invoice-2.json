@@ -1,0 +1,373 @@
+{
+  "id": "in_1URda7FnAoogkMUB0KkjLgNg",
+  "object": "invoice",
+  "account_country": "US",
+  "account_name": "Saharsh Tibrewala",
+  "account_tax_ids": null,
+  "amount_due": 83970,
+  "amount_overpaid": 0,
+  "amount_paid": 0,
+  "amount_remaining": 83970,
+  "amount_shipping": 0,
+  "application": null,
+  "attempt_count": 0,
+  "attempted": false,
+  "auto_advance": false,
+  "automatic_tax": {
+    "disabled_reason": null,
+    "enabled": false,
+    "liability": null,
+    "provider": null,
+    "status": null
+  },
+  "automatically_finalizes_at": null,
+  "billing_reason": "manual",
+  "collection_method": "send_invoice",
+  "created": 1792266471,
+  "currency": "eur",
+  "custom_fields": null,
+  "customer": "cus_VSYHFIl554FFEA",
+  "customer_account": null,
+  "customer_address": {
+    "city": "Antwerpen",
+    "country": "BE",
+    "line1": "Kaaiplaats 1",
+    "line2": null,
+    "postal_code": "2000",
+    "state": null
+  },
+  "customer_email": "facturen@brasserie-dekaai.example",
+  "customer_name": "Brasserie De Kaai NV",
+  "customer_phone": null,
+  "customer_shipping": null,
+  "customer_tax_exempt": "none",
+  "customer_tax_ids": [
+    {
+      "type": "eu_vat",
+      "value": "BE0764221032"
+    }
+  ],
+  "default_payment_method": null,
+  "default_source": null,
+  "default_tax_rates": [
+    {
+      "id": "txr_1URdB4FnAoogkMUBV9FfCiHh",
+      "object": "tax_rate",
+      "active": true,
+      "country": "BE",
+      "created": 1792264918,
+      "description": null,
+      "display_name": "VAT",
+      "effective_percentage": 21.0,
+      "flat_amount": null,
+      "inclusive": false,
+      "jurisdiction": "BE",
+      "jurisdiction_level": null,
+      "livemode": false,
+      "metadata": {},
+      "percentage": 21.0,
+      "rate_type": "percentage",
+      "state": null,
+      "tax_type": null
+    }
+  ],
+  "description": "Repeat order, Kaaiplaats taproom",
+  "discounts": [
+    "di_1URda7FnAoogkMUB81Da3kuI"
+  ],
+  "due_date": 1794858471,
+  "effective_at": 1792266478,
+  "ending_balance": 0,
+  "footer": null,
+  "from_invoice": null,
+  "hosted_invoice_url": "https://invoice.stripe.com/i/acct_1URb8QFnAoogkMUB/test_YWNjdF8xVVJiOFFGbkFvb2drTVVCLF9WU1loYVFBS1Y5Q3BhTDRaY01JT3d0SmRIa253emRQLDE4MjgwNzI4MQ0200C16ylhEx?s=ap",
+  "invoice_pdf": "https://pay.stripe.com/invoice/acct_1URb8QFnAoogkMUB/test_YWNjdF8xVVJiOFFGbkFvb2drTVVCLF9WU1loYVFBS1Y5Q3BhTDRaY01JT3d0SmRIa253emRQLDE4MjgwNzI4MQ0200C16ylhEx/pdf?s=ap",
+  "issuer": {
+    "type": "self"
+  },
+  "last_finalization_error": null,
+  "latest_revision": null,
+  "lines": {
+    "object": "list",
+    "data": [
+      {
+        "id": "il_1URdaDFnAoogkMUBThlUUTAb",
+        "object": "line_item",
+        "amount": 4500,
+        "currency": "eur",
+        "description": "Line cleaning service",
+        "discount_amounts": [
+          {
+            "amount": 225,
+            "discount": "di_1URda7FnAoogkMUB81Da3kuI"
+          }
+        ],
+        "discountable": true,
+        "discounts": [],
+        "invoice": "in_1URda7FnAoogkMUB0KkjLgNg",
+        "livemode": false,
+        "metadata": {},
+        "parent": {
+          "invoice_item_details": {
+            "invoice_item": "ii_1URdaDFnAoogkMUBOlxKRdoi",
+            "proration": false,
+            "proration_details": {
+              "credited_items": null
+            },
+            "subscription": null
+          },
+          "subscription_item_details": null,
+          "type": "invoice_item_details"
+        },
+        "period": {
+          "end": 1792266477,
+          "start": 1792266477
+        },
+        "pretax_credit_amounts": [
+          {
+            "amount": 225,
+            "discount": "di_1URda7FnAoogkMUB81Da3kuI",
+            "type": "discount"
+          }
+        ],
+        "pricing": {
+          "price_details": {
+            "price": "price_1URdaDFnAoogkMUBOkUNspFW",
+            "product": "prod_VSYhb1RmxU7xgK"
+          },
+          "type": "price_details",
+          "unit_amount_decimal": "4500"
+        },
+        "quantity": 1,
+        "quantity_decimal": "1",
+        "subtotal": 4500,
+        "taxes": [
+          {
+            "amount": 898,
+            "tax_behavior": "exclusive",
+            "tax_rate_details": {
+              "tax_rate": "txr_1URdB4FnAoogkMUBV9FfCiHh"
+            },
+            "taxability_reason": "not_available",
+            "taxable_amount": 4275,
+            "type": "tax_rate_details"
+          }
+        ]
+      },
+      {
+        "id": "il_1URdaBFnAoogkMUB61M8UyUd",
+        "object": "line_item",
+        "amount": 14850,
+        "currency": "eur",
+        "description": "Keg of seasonal amber, 20 L",
+        "discount_amounts": [
+          {
+            "amount": 742,
+            "discount": "di_1URda7FnAoogkMUB81Da3kuI"
+          }
+        ],
+        "discountable": true,
+        "discounts": [],
+        "invoice": "in_1URda7FnAoogkMUB0KkjLgNg",
+        "livemode": false,
+        "metadata": {},
+        "parent": {
+          "invoice_item_details": {
+            "invoice_item": "ii_1URdaBFnAoogkMUBOPiJaIYy",
+            "proration": false,
+            "proration_details": {
+              "credited_items": null
+            },
+            "subscription": null
+          },
+          "subscription_item_details": null,
+          "type": "invoice_item_details"
+        },
+        "period": {
+          "end": 1792266475,
+          "start": 1792266475
+        },
+        "pretax_credit_amounts": [
+          {
+            "amount": 742,
+            "discount": "di_1URda7FnAoogkMUB81Da3kuI",
+            "type": "discount"
+          }
+        ],
+        "pricing": {
+          "price_details": {
+            "price": "price_1URdaBFnAoogkMUBYbhyobva",
+            "product": "prod_VSYhKrhyDPji24"
+          },
+          "type": "price_details",
+          "unit_amount_decimal": "7425"
+        },
+        "quantity": 2,
+        "quantity_decimal": "2",
+        "subtotal": 14850,
+        "taxes": [
+          {
+            "amount": 2963,
+            "tax_behavior": "exclusive",
+            "tax_rate_details": {
+              "tax_rate": "txr_1URdB4FnAoogkMUBV9FfCiHh"
+            },
+            "taxability_reason": "not_available",
+            "taxable_amount": 14108,
+            "type": "tax_rate_details"
+          }
+        ]
+      },
+      {
+        "id": "il_1URda9FnAoogkMUBEBhJI0EE",
+        "object": "line_item",
+        "amount": 53700,
+        "currency": "eur",
+        "description": "Keg of house lager, 30 L",
+        "discount_amounts": [
+          {
+            "amount": 2686,
+            "discount": "di_1URda7FnAoogkMUB81Da3kuI"
+          }
+        ],
+        "discountable": true,
+        "discounts": [],
+        "invoice": "in_1URda7FnAoogkMUB0KkjLgNg",
+        "livemode": false,
+        "metadata": {},
+        "parent": {
+          "invoice_item_details": {
+            "invoice_item": "ii_1URda9FnAoogkMUB9yO0Pcf8",
+            "proration": false,
+            "proration_details": {
+              "credited_items": null
+            },
+            "subscription": null
+          },
+          "subscription_item_details": null,
+          "type": "invoice_item_details"
+        },
+        "period": {
+          "end": 1792266473,
+          "start": 1792266473
+        },
+        "pretax_credit_amounts": [
+          {
+            "amount": 2686,
+            "discount": "di_1URda7FnAoogkMUB81Da3kuI",
+            "type": "discount"
+          }
+        ],
+        "pricing": {
+          "price_details": {
+            "price": "price_1URdBCFnAoogkMUB6UCPWpCG",
+            "product": "prod_VSYH86qhxGxNGZ"
+          },
+          "type": "price_details",
+          "unit_amount_decimal": "8950"
+        },
+        "quantity": 6,
+        "quantity_decimal": "6",
+        "subtotal": 53700,
+        "taxes": [
+          {
+            "amount": 10712,
+            "tax_behavior": "exclusive",
+            "tax_rate_details": {
+              "tax_rate": "txr_1URdB4FnAoogkMUBV9FfCiHh"
+            },
+            "taxability_reason": "not_available",
+            "taxable_amount": 51014,
+            "type": "tax_rate_details"
+          }
+        ]
+      }
+    ],
+    "has_more": false,
+    "total_count": 3,
+    "url": "/v1/invoices/in_1URda7FnAoogkMUB0KkjLgNg/lines"
+  },
+  "livemode": false,
+  "metadata": {},
+  "next_payment_attempt": null,
+  "number": "NG7HF2MU-0002",
+  "on_behalf_of": null,
+  "parent": null,
+  "payment_settings": {
+    "default_mandate": null,
+    "payment_method_options": null,
+    "payment_method_types": null
+  },
+  "period_end": 1792266471,
+  "period_start": 1792266471,
+  "post_payment_credit_notes_amount": 0,
+  "pre_payment_credit_notes_amount": 0,
+  "receipt_number": null,
+  "rendering": {
+    "amount_tax_display": null,
+    "pdf": {
+      "page_size": "letter"
+    },
+    "template": null,
+    "template_version": null
+  },
+  "shipping_cost": null,
+  "shipping_details": null,
+  "starting_balance": 0,
+  "statement_descriptor": null,
+  "status": "open",
+  "status_transitions": {
+    "finalized_at": 1792266478,
+    "marked_uncollectible_at": null,
+    "paid_at": null,
+    "voided_at": null
+  },
+  "subtotal": 73050,
+  "subtotal_excluding_tax": 73050,
+  "test_clock": null,
+  "total": 83970,
+  "total_discount_amounts": [
+    {
+      "amount": 3653,
+      "discount": {
+        "id": "di_1URda7FnAoogkMUB81Da3kuI",
+        "object": "discount",
+        "checkout_session": null,
+        "customer": "cus_VSYHFIl554FFEA",
+        "customer_account": null,
+        "end": null,
+        "invoice": "in_1URda7FnAoogkMUB0KkjLgNg",
+        "invoice_item": null,
+        "promotion_code": null,
+        "source": {
+          "coupon": "SqKCRm2Y",
+          "type": "coupon"
+        },
+        "start": 1792266471,
+        "subscription": null,
+        "subscription_item": null
+      }
+    }
+  ],
+  "total_excluding_tax": 69397,
+  "total_pretax_credit_amounts": [
+    {
+      "amount": 3653,
+      "discount": "di_1URda7FnAoogkMUB81Da3kuI",
+      "type": "discount"
+    }
+  ],
+  "total_taxes": [
+    {
+      "amount": 14573,
+      "tax_behavior": "exclusive",
+      "tax_rate_details": {
+        "tax_rate": "txr_1URdB4FnAoogkMUBV9FfCiHh"
+      },
+      "taxability_reason": "not_available",
+      "taxable_amount": 69397,
+      "type": "tax_rate_details"
+    }
+  ],
+  "webhooks_delivered_at": 1792266471
+}

@@ -2,7 +2,7 @@
 //   npx tsx scripts/bootstrap-vm.ts --self-test     (create or resume, then self-test + network probe)
 //   npx tsx scripts/bootstrap-vm.ts --rebuild       (destroy and recreate; costs one daily sandbox creation)
 import { existsSync } from "node:fs";
-import { ensureGolden, findGolden, selfTest, probeNetwork, egressRules } from "../src/lib/sandbox";
+import { ensureGolden, findGolden, selfTest, probeNetwork, egressRules, updateValidator } from "../src/lib/sandbox";
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 const log = (l: string) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${l}`);
@@ -18,6 +18,11 @@ async function main() {
   const t = Date.now();
   const { sandbox, created, resumeMs } = await ensureGolden(log);
   log(`golden VM ${sandbox.id} running (${created ? "created" : resumeMs != null ? `resumed in ${resumeMs} ms` : "already running"}) in ${Date.now() - t} ms`);
+  if (process.argv.includes("--update-validator")) {
+    const { sandbox } = await ensureGolden(log);
+    await updateValidator(sandbox, log);
+    return;
+  }
   if (process.argv.includes("--self-test")) {
     const st = await selfTest(sandbox);
     log(`self-test: ${st.ok ? "PASS" : "FAIL"} ${JSON.stringify(st.results)}`);
