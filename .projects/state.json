@@ -1,0 +1,89 @@
+{
+  "version": 2,
+  "providers": {
+    "createos": {
+      "name": "createos"
+    },
+    "openrouter": {
+      "name": "OpenRouter"
+    },
+    "vercel": {
+      "name": "Vercel"
+    }
+  },
+  "resources": {
+    "createos-plan": {
+      "livemode": true,
+      "name": "createos-plan",
+      "providerName": "createos",
+      "serviceId": "free"
+    },
+    "createos-project": {
+      "livemode": true,
+      "name": "createos-project",
+      "providerName": "createos",
+      "serviceId": "project"
+    },
+    "openrouter-api": {
+      "livemode": true,
+      "name": "openrouter-api",
+      "providerName": "OpenRouter",
+      "serviceId": "api"
+    },
+    "openrouter-plan": {
+      "livemode": true,
+      "name": "openrouter-plan",
+      "providerName": "OpenRouter",
+      "serviceId": "free"
+    },
+    "peppolsmith": {
+      "livemode": true,
+      "name": "peppolsmith",
+      "providerName": "Vercel",
+      "serviceId": "project"
+    },
+    "vercel-plan": {
+      "livemode": true,
+      "name": "vercel-plan",
+      "providerName": "Vercel",
+      "serviceId": "hobby"
+    }
+  },
+  "environments": {
+    "default": {
+      "output": ".env",
+      "resources": [
+        {
+          "resourceName": "createos-plan"
+        },
+        {
+          "resourceName": "createos-project"
+        },
+        {
+          "resourceName": "openrouter-api"
+        },
+        {
+          "resourceName": "openrouter-plan"
+        },
+        {
+          "resourceName": "peppolsmith"
+        },
+        {
+          "resourceName": "vercel-plan"
+        }
+      ],
+      "variables": [
+        {
+          "variableName": "featherless-api-key",
+          "envKey": "FEATHERLESS_API_KEY"
+        }
+      ]
+    }
+  },
+  "variables": {
+    "featherless-api-key": {
+      "name": "featherless-api-key",
+      "backendId": "fprjvar_61Vb0qpMOSSC6JKEJ16Vaz5nKdSQRjGQHy5Ycr7RQP28"
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "version": 4,
+  "project": {
+    "catalog": "prod",
+    "initializedAt": "2026-10-17T19:01:51.620Z",
+    "merchantDisplayName": null,
+    "merchantId": "acct_1URb8QFnAoogkMUB",
+    "projectId": "project_61Vb0ov7ghfAKAhn016Vaz5nKdSQRjGQHy5Ycr7RQTf6",
+    "projectName": "peppolsmith"
+  },
+  "providers": {
+    "createos": {
+      "accountRequestId": "fprvcnn_61VazPdQFEuBL6I6116Vaz5nKdSQRjGQHy5Ycr7RQUYS",
+      "configuration": {},
+      "linkedAt": "2026-10-17T17:31:37.485Z",
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "redirectUrl": null,
+      "requestedAt": "2026-10-17T17:31:37.485Z",
+      "status": "complete"
+    },
+    "openrouter": {
+      "accountRequestId": "fprvcnn_61VazQSh9IOYDWDEr16Vaz5nKdSQRjGQHy5Ycr7RQIcS",
+      "configuration": {},
+      "linkedAt": "2026-10-17T17:32:28.198Z",
+      "providerId": "prvdr_61URImmFACEuDHEx651IO",
+      "providerName": "OpenRouter",
+      "redirectUrl": null,
+      "requestedAt": "2026-10-17T17:32:28.198Z",
+      "status": "complete"
+    },
+    "vercel": {
+      "accountRequestId": "facctrq_61Vb0qPo58NeDAfzP16Vaz5nKdSQRjGQHy5Ycr7RQTHM",
+      "configuration": {},
+      "linkedAt": "2026-10-17T19:03:25.435Z",
+      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
+      "providerName": "Vercel",
+      "redirectUrl": null,
+      "requestedAt": "2026-10-17T19:03:25.434Z",
+      "status": "complete"
+    }
+  },
+  "resources": {
+    "createos-plan": {
+      "configuration": {},
+      "createdAt": "2026-10-17T19:02:13.775Z",
+      "lastRevealedAt": "2026-10-17T19:02:14.439Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "createos-plan",
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "resourceId": "fres_61Vb0pCbfu9ezV3aj16Vaz5nKdSQRjGQHy5Ycr7RQRfU",
+      "serviceId": "free"
+    },
+    "createos-project": {
+      "configuration": {},
+      "createdAt": "2026-10-17T19:02:20.240Z",
+      "lastRevealedAt": "2026-10-17T19:02:21.205Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "createos-project",
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "resourceId": "fres_61Vb0pN3gAXfYA3Nr16Vaz5nKdSQRjGQHy5Ycr7RQVDc",
+      "serviceId": "project"
+    },
+    "openrouter-api": {
+      "configuration": {},
+      "createdAt": "2026-10-17T19:02:33.347Z",
+      "lastRevealedAt": "2026-10-17T19:02:34.415Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "openrouter-api",
+      "providerId": "prvdr_61URImmFACEuDHEx651IO",
+      "providerName": "OpenRouter",
+      "resourceId": "fres_61Vb0pbEzIDoMger116Vaz5nKdSQRjGQHy5Ycr7RQMQy",
+      "serviceId": "api"
+    },
+    "openrouter-plan": {
+      "configuration": {},
+      "createdAt": "2026-10-17T19:02:27.008Z",
+      "lastRevealedAt": "2026-10-17T19:02:27.985Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "openrouter-plan",
+      "providerId": "prvdr_61URImmFACEuDHEx651IO",
+      "providerName": "OpenRouter",
+      "resourceId": "fres_61Vb0pVSKnxnrMDvh16Vaz5nKdSQRjGQHy5Ycr7RQU24",
+      "serviceId": "free"
+    },
+    "peppolsmith": {
+      "configuration": {
+        "name": "peppolsmith"
+      },
+      "createdAt": "2026-10-17T19:03:33.785Z",
+      "lastRevealedAt": "2026-10-17T19:03:34.610Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "peppolsmith",
+      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
+      "providerName": "Vercel",
+      "resourceId": "fres_61Vb0qZi92Yq2Tqcv16Vaz5nKdSQRjGQHy5Ycr7RQByK",
+      "serviceId": "project"
+    },
+    "vercel-plan": {
+      "configuration": {},
+      "createdAt": "2026-10-17T19:03:27.097Z",
+      "lastRevealedAt": "2026-10-17T19:03:27.908Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "vercel-plan",
+      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
+      "providerName": "Vercel",
+      "resourceId": "fres_61Vb0qTeZpmSTEfrT16Vaz5nKdSQRjGQHy5Ycr7RQ51M",
+      "serviceId": "hobby"
+    }
+  },
+  "managedProjectVariableEnvKeys": {
+    ".env": [
+      "FEATHERLESS_API_KEY"
+    ]
+  }
+}
