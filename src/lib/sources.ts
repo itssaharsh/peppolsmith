@@ -81,6 +81,7 @@ const text = (x: unknown): string => (typeof x === "object" && x !== null ? Stri
 function ciiContract(raw: string): { contract: SourceContract; ref: string } {
   const doc = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true, parseTagValue: false }).parse(raw).CrossIndustryInvoice;
   const tx = doc.SupplyChainTradeTransaction;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- parsed CII XML; its shape is checked by the contract code
   const lines: ContractLine[] = asArray(tx.IncludedSupplyChainTradeLineItem).map((li: Record<string, any>) => {
     const net = toCents(text(li.SpecifiedLineTradeSettlement.SpecifiedTradeSettlementLineMonetarySummation.LineTotalAmount));
     return { description: text(li.SpecifiedTradeProduct.Name), quantity: Number(text(li.SpecifiedLineTradeDelivery.BilledQuantity)), grossNet: net, discountedNet: net };

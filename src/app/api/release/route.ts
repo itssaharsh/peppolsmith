@@ -5,7 +5,12 @@ import { findGolden } from "@/lib/sandbox";
 import { verifyRelease } from "@/lib/sign";
 
 export async function POST(request: Request) {
-  const body = (JSON.parse((await request.text().catch(() => "")) || "{}") ?? {}) as { runId?: unknown; token?: unknown };
+  let body: { runId?: unknown; token?: unknown } = {};
+  try {
+    body = (JSON.parse((await request.text().catch(() => "")) || "{}") ?? {}) as { runId?: unknown; token?: unknown };
+  } catch {
+    return Response.json({ error: "Not a release request." }, { status: 400 });
+  }
   const runId = typeof body.runId === "string" && /^run-[a-f0-9]{10}$/.test(body.runId) ? body.runId : null;
   if (!runId || !verifyRelease(runId, body.token)) return Response.json({ error: "Not a run this server issued." }, { status: 403 });
   try {

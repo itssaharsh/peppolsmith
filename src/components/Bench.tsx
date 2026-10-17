@@ -61,8 +61,10 @@ function announceFor(a: Attempt): string {
     return "Held back: the totals don't match the bill.";
   }
   if (a.outcome === "held_provenance") return "Held back: an ID isn't from the invoice.";
-  const n = a.rules?.failed.length;
-  return `Try ${a.n} finished: ${n ?? "no"} errors left.`;
+  if (a.outcome === "no_xml") return `Try ${a.n} crashed before writing an invoice. The AI reads the error and tries again.`;
+  if (a.outcome === "error") return `Try ${a.n} couldn't finish.`;
+  const n = a.rules?.failed.length ?? 0;
+  return `Try ${a.n} finished: ${n} ${n === 1 ? "error" : "errors"} left.`;
 }
 
 type View = "upload" | "replay" | "custom";
@@ -293,6 +295,7 @@ export function Bench() {
       if (ctrl.signal.aborted) {
         setLive((l) => (l ? { ...l, phase: l.run ? "stopped" : "error", error: l.run ? undefined : "Stopped before the first try." } : l));
       } else {
+        releaseLock();
         setLive((l) =>
           l ? { ...l, phase: "error", error: `The connection dropped: ${(e as Error).message}. The tries so far are kept.` } : l,
         );
@@ -305,7 +308,7 @@ export function Bench() {
         loadHealthRef.current();
       }, 15000);
     }
-  }, [anyLiveRunning, source]);
+  }, [anyLiveRunning, source, releaseLock]);
   const runLive = useCallback(() => void startLive(), [startLive]);
 
   const openExample = (k: SourceKey) => {
@@ -374,7 +377,7 @@ export function Bench() {
       setAnnounce("This recording has no XML for that attempt.");
       return;
     }
-    downloadBlob(`peppol-${source}-${run.runId}.xml`, x, "application/xml");
+    downloadBlob(`peppol-${run.source.custom ? (run.source.fromPdf ? "pdf" : "upload") : run.source.kind}-${run.runId}.xml`, x, "application/xml");
   };
 
   const downloadCert = async () => {
@@ -407,7 +410,7 @@ export function Bench() {
       generatedAt: new Date().toISOString(),
       note: "Generated in the browser from the run log shown on the page.",
     };
-    downloadBlob(`peppolsmith-certificate-${source}-${run.runId}.json`, JSON.stringify(cert, null, 2), "application/json");
+    downloadBlob(`peppolsmith-certificate-${run.source.custom ? (run.source.fromPdf ? "pdf" : "upload") : run.source.kind}-${run.runId}.json`, JSON.stringify(cert, null, 2), "application/json");
   };
 
   const doConvert = async () => {
@@ -527,7 +530,7 @@ export function Bench() {
           />
         </main>
         <AboutCard />
-        <Footer recordedAt={replays[defaultSource]?.recordedAt} />
+        <Footer />
       </div>
     );
   }
@@ -812,7 +815,7 @@ export function Bench() {
       </div>
 
       <AboutCard />
-      <Footer recordedAt={replay?.recordedAt} />
+      <Footer recordedAt={view === "replay" ? replay?.recordedAt : undefined} />
     </div>
   );
 }

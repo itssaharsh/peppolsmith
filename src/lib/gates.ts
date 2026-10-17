@@ -59,3 +59,45 @@ export function provenance(xml: string, source: Pick<Source, "raw" | "partners">
   });
   return { total: ids.length, traced: ids.length - untraced.length, untraced };
 }
+
+
+const UBL_INVOICE_NS = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
+const UBL_NAMESPACES = new Set([
+  UBL_INVOICE_NS,
+  "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+  "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+  "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2",
+]);
+
+/**
+ * UBL structure checks the CEN and Peppol rule sets don't make: the document is a UBL Invoice, its root carries only
+ * namespace declarations, and every element is in a UBL namespace. No model involved. Each problem is reported like a
+ * failed rule, so the model has to fix it before release.
+ */
+export function ublStructure(xml: string): { id: string; set: string; message: string; count: number }[] {
+  const issues: { id: string; set: string; message: string; count: number }[] = [];
+  const add = (message: string) => issues.push({ id: "UBL-STRUCTURE", set: "UBL 2.1 structure", message, count: 1 });
+  const body = xml.replace(/<\?[\s\S]*?\?>/g, "").replace(/<!--[\s\S]*?-->/g, "");
+  const root = /<([A-Za-z_][\w.-]*:)?([A-Za-z_][\w.-]*)((?:\s+[^\s=>]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*\/?>/.exec(body);
+  if (!root) return [{ id: "UBL-STRUCTURE", set: "UBL 2.1 structure", message: "No root element was found.", count: 1 }];
+  const [, prefix = "", local, attrText = ""] = root;
+  const decls = new Map<string, string>();
+  for (const m of attrText.matchAll(/([^\s=]+)\s*=\s*("([^"]*)"|'([^']*)')/g)) {
+    const name = m[1];
+    const value = m[3] ?? m[4] ?? "";
+    if (name === "xmlns") decls.set("", value);
+    else if (name.startsWith("xmlns:")) decls.set(name.slice(6), value);
+    else add(`The root element has an attribute UBL doesn't allow: ${name}. Only namespace declarations (xmlns, xmlns:cac, xmlns:cbc) belong on <Invoice>.`);
+  }
+  if (local !== "Invoice") add(`The root element is <${prefix}${local}>, not a UBL <Invoice>.`);
+  const rootNs = decls.get(prefix.replace(/:$/, ""));
+  if (rootNs !== UBL_INVOICE_NS) add(`The root element is not in the UBL Invoice namespace (${UBL_INVOICE_NS}).`);
+  // every prefix used on an element must be declared on the root and be a UBL namespace
+  const used = new Set([...body.matchAll(/<([A-Za-z_][\w.-]*):[A-Za-z_]/g)].map((m) => m[1]));
+  for (const p of used) {
+    const ns = decls.get(p);
+    if (!ns) add(`The prefix "${p}:" is used on elements but not declared on the root element.`);
+    else if (!UBL_NAMESPACES.has(ns)) add(`The prefix "${p}:" points to ${ns}, which is not a UBL namespace.`);
+  }
+  return issues;
+}

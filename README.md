@@ -57,6 +57,7 @@ Peppol IDs and seller details that an invoice doesn't carry come from the declar
     - PDF invoices: 3 of 3, plus 3 of 3 through the live page.
     - The official CEN CII example and its upload variant: 13 of 24. This is the hard one (a different standard and German national rules), and most misses came before the model was given the rules' XPath tests, its own XML and a map of the source's element paths.
     - The average model cost was $0.028 per run.
+    - A final QA pass found that 5 of the 35 certified XMLs carried an attribute on `<Invoice>` that UBL doesn't allow (`nsmap`, left by the model's ElementTree code). The CEN and Peppol rule sets don't check for it, so a UBL structure check with no model now fails it like a rule, and the model must fix it before release. The three recorded runs are clean.
     - Nothing was ever released without all three checks passing.
 
 ## How it uses the sponsors

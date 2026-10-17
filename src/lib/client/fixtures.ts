@@ -140,7 +140,7 @@ export function buildPreview(state: PreviewState, replay: RunLog | null, others:
       const real = [replay, ...others].find((r) => r && r.verdict === "no_release");
       if (real) return { run: { ...clone(real), mode: "preview" }, selected: real.attempts.length - 1 };
       const a = baseAttempt(run);
-      const counts = [3, 3, 2, 2, 1, 1];
+      const counts = [3, 3, 2, 2, 2, 1, 1, 1];
       const attempts: Attempt[] = counts.map((c, i) => ({
         ...clone(a),
         n: i + 1,

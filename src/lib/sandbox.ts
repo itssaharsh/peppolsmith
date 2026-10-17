@@ -233,12 +233,12 @@ export async function probeNetwork(sb: Sandbox): Promise<{ blocked: boolean; det
     "sh",
     [
       "-c",
-      "timeout 12 runuser -u nobody -- /usr/bin/python3 -c \"import urllib.request; urllib.request.urlopen('https://pypi.org', timeout=8); print('REACHED')\" 2>&1 | tail -1",
+      "timeout 20 runuser -u nobody -- /usr/bin/python3 -c \"\nimport socket, urllib.request\nout = []\ntry:\n    urllib.request.urlopen('https://pypi.org', timeout=6); out.append('pypi.org: REACHED')\nexcept Exception as e:\n    out.append('pypi.org: ' + str(e)[:90])\ntry:\n    socket.create_connection(('1.1.1.1', 443), timeout=6).close(); out.append('1.1.1.1:443: REACHED')\nexcept Exception as e:\n    out.append('1.1.1.1:443: ' + str(e)[:90])\nprint(' | '.join(out))\n\" 2>&1 | tail -1",
     ],
-    { timeoutMs: 30_000 },
+    { timeoutMs: 40_000 },
   );
   const out = (r.result.stdout ?? "").trim();
-  return { blocked: !out.includes("REACHED"), detail: out.slice(-200) };
+  return { blocked: out.length > 0 && !out.includes("REACHED"), detail: out.slice(-300) };
 }
 
 export async function egressRules(sb: Sandbox): Promise<string[]> {

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Sandbox } from "@nodeops-createos/sandbox";
 import { countRules } from "./agent";
-import { provenance, reconcile, type ReconRow } from "./gates";
+import { provenance, reconcile, ublStructure, type ReconRow } from "./gates";
 import { prepareRun, readOutput, runMap, safeRunId, validateRun } from "./sandbox";
 import type { Source, SourceKind } from "./sources";
 import type { Outcome, RuleCount, RunLog } from "./runlog";
@@ -41,8 +41,12 @@ export function recorded(kind: SourceKind): { runId: string; code: string; xml: 
 /** Official rules on /work/<runId>/out.xml, then the two model-free gates. */
 async function judge(sb: Sandbox, runId: string, source: Source, t0: number): Promise<CheckResult> {
   const v = await validateRun(sb, runId);
-  const rules = { failed: countRules(v.failed), warnings: countRules(v.warnings), error: v.wellFormed ? undefined : v.error };
   const xml = await readOutput(sb, runId);
+  const rules = {
+    failed: [...countRules(v.failed), ...(v.wellFormed && xml ? ublStructure(xml) : [])],
+    warnings: countRules(v.warnings),
+    error: v.wellFormed ? undefined : v.error,
+  };
   if (!v.wellFormed || !xml) return { ms: Date.now() - t0, xml, rules, reconciliation: null, provenance: null, outcome: "no_xml", error: v.error };
   const rec = reconcile(xml, source.contract);
   const prov = provenance(xml, source);

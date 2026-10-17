@@ -102,6 +102,7 @@ const RULE_NOTES: Record<string, string> = {
   "BR-45": "Every TaxSubtotal needs a TaxableAmount (with currencyID): the sum of the line amounts in that VAT category and rate, after document-level allowances and charges.",
   "BR-46": "Every TaxSubtotal needs a TaxAmount (with currencyID): TaxableAmount x Percent / 100.",
   "BR-S-09": "For standard-rated VAT, each TaxSubtotal/TaxAmount = TaxableAmount x Percent / 100.",
+  "UBL-STRUCTURE": "Write the root as <Invoice xmlns=\"urn:oasis:names:specification:ubl:schema:xsd:Invoice-2\" xmlns:cac=\"...CommonAggregateComponents-2\" xmlns:cbc=\"...CommonBasicComponents-2\"> with no other attributes: with ElementTree, use ET.register_namespace and never set an attribute such as nsmap on the root.",
   "BR-06": "The seller name goes in AccountingSupplierParty/Party/PartyLegalEntity/RegistrationName.",
   "BR-07": "The buyer name goes in AccountingCustomerParty/Party/PartyLegalEntity/RegistrationName.",
 };

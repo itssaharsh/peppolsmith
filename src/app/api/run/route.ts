@@ -1,8 +1,8 @@
 // POST /api/run {source: "stripe" | "cii" | "csv"} -> a new live run log (or 409 busy / 429 daily cap).
 import { startRun } from "@/lib/run";
 import { isSourceKind, sourceFromUpload } from "@/lib/sources";
-import { acquireRun } from "@/lib/guard";
-import { client } from "@/lib/sandbox";
+import { acquireRun, lockBusy } from "@/lib/guard";
+import { client, resumeGolden } from "@/lib/sandbox";
 import { signRun } from "@/lib/sign";
 import { sourceFromPdf } from "@/lib/pdf";
 
@@ -18,7 +18,16 @@ export async function POST(request: Request) {
     body = {};
   }
   if (typeof body.pdf === "string") {
-    // a PDF: the AI reads it, checks with no AI verify the reading, then it runs like any other upload
+    // a PDF: the AI reads it, checks with no AI verify the reading, then it runs like any other upload.
+    // Check the lock first, so a PDF uploaded during someone else's run doesn't spend a model call to be told "busy".
+    try {
+      const golden = await resumeGolden();
+      if (golden && (await lockBusy(golden.sandbox))) {
+        return Response.json({ error: "Someone else's live run is going. The replay shows a full run meanwhile.", reason: "busy" }, { status: 409 });
+      }
+    } catch {
+      /* acquireRun below still decides */
+    }
     let prepared: Awaited<ReturnType<typeof sourceFromPdf>>;
     try {
       prepared = await sourceFromPdf(new Uint8Array(Buffer.from(body.pdf, "base64")));

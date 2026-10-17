@@ -71,7 +71,7 @@ function NetworkTest() {
           {r.blocked ? (
             <>
               <span className="font-semibold text-success">Blocked.</span> From inside the VM, as the same unprivileged user that runs the
-              AI&apos;s code, a request to <span className="font-mono">https://pypi.org</span> failed ({secs(r.ms)}
+              AI&apos;s code, a request to <span className="font-mono">https://pypi.org</span> and a direct connection to <span className="font-mono">1.1.1.1:443</span> both failed ({secs(r.ms)}
               {r.resumeMs != null ? `, after waking the paused VM in ${secs(r.resumeMs)}` : ""}).
               {r.detail ? <span className="block break-all font-mono text-[12px] text-ink-muted">{r.detail}</span> : null}
             </>
@@ -116,7 +116,7 @@ export function CreateOSPanel({ run, health }: { run: RunLog | null; health: Hea
           Off while the AI&apos;s code runs. One deny-by-default egress rule, set on the host, outside the VM.
           <NetworkTest />
         </Row>
-        <Row label="Blocked">
+        <Row label="Blocked in this run">
           {blocked.length
             ? `${blocked.length} ${blocked.length === 1 ? "connection" : "connections"} this run: ${blocked
                 .map((b) => `${b.host}, attempt ${b.attempt}${b.by === "probe" ? " (test probe)" : ""}`)
@@ -180,7 +180,13 @@ export function StripePanel({ run }: { run: RunLog | null }) {
         ))}
       </dl>
       <dl className="mt-2 border-t border-line pt-1">
-        <Row label="Invoice source">The Stripe test invoice was created with the Stripe CLI in test mode.</Row>
+        <Row label="Invoice source">
+          {run?.source.custom
+            ? run.source.fromPdf
+              ? "A PDF you uploaded, read by the AI and checked against the PDF with no AI."
+              : "A file you uploaded."
+            : "The Stripe test invoices were created with the Stripe CLI in test mode."}
+        </Row>
         <Row label="AI model">
           {m.name}, through {m.provider}. Falls back to DeepSeek-V3.2 on Featherless, then free OpenRouter models.
         </Row>
@@ -212,8 +218,8 @@ export function JudgePopover({ first, attempts }: { first: number | null; attemp
             : "Or watch a recorded example run, and click any try to see the errors and the AI's code change."}
         </li>
         <li>In the recorded Stripe example, open Try to fool the checks and press Drop the discount: every EU rule passes, and Peppolsmith holds it back.</li>
-        <li>Press Convert another invoice, AI off: the approved converter runs again with 0 AI calls.</li>
-        <li>Download the e-invoice and check it in any public Peppol validator.</li>
+        <li>In the Stripe or CSV example, press Convert another invoice, AI off: the approved converter runs on a new invoice with 0 AI calls.</li>
+        <li>Scroll to the CreateOS panel and press Test the network lock: a request from inside the sandbox fails, live.</li>
       </ol>
     </div>
   );

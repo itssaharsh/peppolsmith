@@ -89,6 +89,13 @@ const RESULTS = [
     cost: "$0.005",
     time: "17 s",
   },
+  {
+    source: "A caterer's PDF invoice (read by the AI, every number checked against the PDF with no AI)",
+    tries: "5, then 0: approved",
+    calls: "3",
+    cost: "$0.013",
+    time: "40 s",
+  },
 ];
 
 export default function AboutPage() {

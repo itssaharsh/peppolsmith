@@ -39,6 +39,14 @@ export async function releaseRun(sb: Sandbox, runId: string): Promise<void> {
   await sb.sh(`cd /work && if [ "$(cat LOCK 2>/dev/null)" = "${id}" ]; then rm -f LOCK; fi; echo done`, { label: "release run lock" });
 }
 
+/** True when another live run holds a fresh lock (a cheap pre-check; acquireRun still decides). */
+export async function lockBusy(sb: Sandbox): Promise<boolean> {
+  const r = await sb.sh(`cd /work && [ -f LOCK ] && [ $(( $(date +%s) - $(stat -c %Y LOCK) )) -lt ${STALE_SECONDS} ] && echo BUSY || echo FREE`, {
+    label: "lock check",
+  });
+  return r.result.stdout.trim().endsWith("BUSY");
+}
+
 /** Counts one try-to-fool or model-off check against the daily cap; false when the cap is reached. */
 export async function countCheck(sb: Sandbox): Promise<boolean> {
   const script = `cd /work && day=$(date -u +%Y%m%d); n=$(cat checks-$day 2>/dev/null || echo 0); if [ "$n" -ge ${DAILY_CHECKS} ]; then echo CAP; else echo $((n+1)) > checks-$day; echo OK; fi`;

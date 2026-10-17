@@ -5,7 +5,7 @@ import { applyEdits, hasEditBlocks } from "./edits";
 import type { Sandbox } from "@nodeops-createos/sandbox";
 import { SYSTEM_PROMPT, firstPrompt, fixPrompt, isStuck } from "./prompts";
 import { prepareRun, readOutput, runMap, validateRun, type RuleFailure } from "./sandbox";
-import { reconcile, provenance } from "./gates";
+import { reconcile, provenance, ublStructure } from "./gates";
 import type { Source } from "./sources";
 import type { Attempt, RuleCount, Step } from "./runlog";
 
@@ -186,7 +186,9 @@ export async function attempt(sb: Sandbox, runId: string, source: Source, previo
   // 3. official rules (orchestrator only, hash-checked validator)
   const tv = Date.now();
   const v = await validateRun(sb, runId);
-  const failed = countRules(v.failed);
+  const xml = await readOutput(sb, runId);
+  // UBL structure the rule sets don't check (e.g. a stray attribute on <Invoice>), reported as failed rules
+  const failed = [...countRules(v.failed), ...(v.wellFormed && xml ? ublStructure(xml) : [])];
   const prevIds = new Set(lastChecked?.rules?.failed.map((f) => f.id) ?? []);
   const nowIds = new Set(failed.map((f) => f.id));
   const rules = {
@@ -198,7 +200,6 @@ export async function attempt(sb: Sandbox, runId: string, source: Source, previo
   };
   const rulesFailed = failed.length + (v.wellFormed ? 0 : 1);
   step({ id: "rules", status: rulesFailed === 0 ? "ok" : "fail", ms: Date.now() - tv, who: "CEN EN16931 + Peppol BIS 3.0", note: `${rulesFailed} failed` });
-  const xml = await readOutput(sb, runId);
   if (rulesFailed > 0 || !xml) {
     return { ...base, ms: Date.now() - t0, steps, run: runRec, rules, reconciliation: null, provenance: null, outcome: v.wellFormed ? "rules_failed" : "no_xml", error: v.error, xml: xml ?? undefined };
   }
