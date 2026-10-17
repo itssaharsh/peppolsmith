@@ -13,6 +13,7 @@ import {
   pdt,
   runModel,
   sha256Hex,
+  STEP_LABEL,
   SOURCES,
   sourceLabel,
   type SourceKey,
@@ -23,9 +24,12 @@ import { ChangePane, Checklist, RulesList } from "./Detail";
 import { Sheet, type ConvertResult, type FoolResult } from "./Sheet";
 import { AboutCard, CreateOSPanel, Footer, JudgePopover, StripePanel, type Health } from "./Panels";
 import { TopBar } from "./TopBar";
+import { Upload } from "./Upload";
 
 type Live = {
   source: SourceKey;
+  custom: boolean;
+  fileName?: string;
   run: RunLog | null;
   phase: "starting" | "stepping" | "done" | "stopped" | "error";
   error?: string;
@@ -61,8 +65,12 @@ function announceFor(a: Attempt): string {
   return `Try ${a.n} finished: ${n ?? "no"} errors left.`;
 }
 
+type View = "upload" | "replay" | "custom";
+
 export function Bench() {
   const [ready, setReady] = useState(false);
+  const [view, setView] = useState<View>("upload");
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [replays, setReplays] = useState<Partial<Record<SourceKey, RunLog | null>>>({});
   const [source, setSource] = useState<SourceKey>("stripe");
   const [defaultSource, setDefaultSource] = useState<SourceKey>("stripe");
@@ -106,6 +114,8 @@ export function Bench() {
       if (isPreview(st)) setPreviewState(st);
       const at = Number(q.get("attempt"));
       if (at > 0) setSelected(at - 1);
+      // the upload view is the default; any example or preview parameter opens the bench on a recorded run
+      if (isSource(qs) || isPreview(st) || at > 0 || q.get("record") === "1" || q.get("judge") === "1") setView("replay");
       setReady(true);
       if (q.get("judge") === "1") {
         const el = document.getElementById("judge") as (HTMLElement & { showPopover?: () => void }) | null;
@@ -143,7 +153,7 @@ export function Bench() {
     () => (previewState ? buildPreview(previewState, replay, Object.values(replays).filter(Boolean) as RunLog[]) : null),
     [previewState, replay, replays],
   );
-  const liveHere = live && live.source === source ? live : null;
+  const liveHere = view === "custom" ? live : live && !live.custom && live.source === source ? live : null;
   const run: RunLog | null = liveHere ? liveHere.run : preview ? preview.run : replay;
   const liveRunning = !!liveHere && (liveHere.phase === "starting" || liveHere.phase === "stepping");
   const anyLiveRunning = !!live && (live.phase === "starting" || live.phase === "stepping");
@@ -185,9 +195,10 @@ export function Bench() {
     window.history.replaceState(null, "", `?${q.toString()}`);
   };
 
-  const runLive = useCallback(async () => {
+  const startLive = useCallback(async (upload?: { text: string; fileName: string }) => {
     if (anyLiveRunning) return;
     setBanner(null);
+    setUploadError(null);
     setPreviewState(null);
     resetExtras();
     setSelected(null);
@@ -195,14 +206,29 @@ export function Bench() {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     const t0 = Date.now();
-    const src = source;
-    setLive({ source: src, run: null, phase: "starting", startedAt: t0, stepStartedAt: t0 });
+    const custom = !!upload;
+    let src: SourceKey = source;
+    setLive({ source: src, custom, fileName: upload?.fileName, run: null, phase: "starting", startedAt: t0, stepStartedAt: t0 });
     setAnnounce("Live run starting.");
     setSuppressBusy(true);
     try {
-      const start = await postJson<RunLog>("/api/run", { source: src }, ctrl.signal);
-      if (!start.ok) {
+      const start = await postJson<RunLog>(
+        "/api/run",
+        upload ? { upload: upload.text, fileName: upload.fileName } : { source: src },
+        ctrl.signal,
+      );
+      if (!start.ok || !start.data || !Array.isArray((start.data as RunLog).attempts)) {
         setLive(null);
+        if (custom) {
+          setUploadError(
+            start.status === 409 || start.data.reason === "busy"
+              ? "A live run is already going. Live runs go one at a time; try again in a few minutes, or watch a recorded example."
+              : start.status === 429 || start.data.reason === "cap"
+                ? "Today's live runs are used up. The recorded examples still work."
+                : `Couldn't start: ${start.data.error ?? `the server answered ${start.status}`}`,
+          );
+          return;
+        }
         if (start.status === 409 || start.data.reason === "busy")
           setBanner({
             kind: "busy",
@@ -214,7 +240,12 @@ export function Bench() {
         return;
       }
       let cur = start.data as RunLog;
-      setLive({ source: src, run: cur, phase: "stepping", startedAt: t0, stepStartedAt: Date.now() });
+      if (custom && isSource(cur.source?.kind)) src = cur.source.kind;
+      if (custom) {
+        setView("custom");
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+      setLive({ source: src, custom, fileName: upload?.fileName, run: cur, phase: "stepping", startedAt: t0, stepStartedAt: Date.now() });
       while (cur.verdict === "running" && !stopRef.current) {
         const step = await postJson<RunLog>("/api/step", { run: cur }, ctrl.signal);
         if (!step.ok || !step.data || !Array.isArray((step.data as RunLog).attempts)) {
@@ -226,7 +257,15 @@ export function Bench() {
         const lastA = cur.attempts[cur.attempts.length - 1];
         if (lastA) setAnnounce(announceFor(lastA));
         setSelected(null);
-        setLive({ source: src, run: cur, phase: cur.verdict === "running" ? "stepping" : "done", startedAt: t0, stepStartedAt: Date.now() });
+        setLive({
+          source: src,
+          custom,
+          fileName: upload?.fileName,
+          run: cur,
+          phase: cur.verdict === "running" ? "stepping" : "done",
+          startedAt: t0,
+          stepStartedAt: Date.now(),
+        });
       }
       if (stopRef.current) setLive((l) => (l ? { ...l, phase: "stopped" } : l));
     } catch (e) {
@@ -246,6 +285,29 @@ export function Bench() {
       }, 15000);
     }
   }, [anyLiveRunning, source]);
+  const runLive = useCallback(() => void startLive(), [startLive]);
+
+  const openExample = (k: SourceKey) => {
+    if (anyLiveRunning) return;
+    setView("replay");
+    setPreviewState(null);
+    setSource(k);
+    setSelected(null);
+    resetExtras();
+    window.history.replaceState(null, "", `?source=${k}`);
+    window.scrollTo(0, 0);
+  };
+
+  const goUpload = () => {
+    if (anyLiveRunning) return;
+    setView("upload");
+    setPreviewState(null);
+    setUploadError(null);
+    setLive(null);
+    resetExtras();
+    window.history.replaceState(null, "", window.location.pathname);
+    window.scrollTo(0, 0);
+  };
 
   const stop = () => {
     stopRef.current = true;
@@ -424,9 +486,33 @@ export function Bench() {
   const provenanceLine = run?.source.provenance || replay?.source.provenance || srcMeta.provenance;
   const showChecklist = running;
 
+  if (view === "upload") {
+    const starting = !!live && live.custom && live.phase === "starting";
+    return (
+      <div id="top" className="mx-auto w-full max-w-[1440px] px-4 lg:px-8">
+        <TopBar page="home" onTryIt={goUpload} />
+        <JudgePopover first={firstCount} attempts={replayDefault?.attempts.length ?? 0} />
+        <p className="sr-only" role="status" aria-live="polite">
+          {announce}
+        </p>
+        <main>
+          <Upload
+            starting={starting}
+            error={uploadError}
+            blockedReason={busy && !starting ? "A live run is already going. Live runs go one at a time." : capped ? "Today's live runs are used up." : null}
+            onConvert={(text, fileName) => void startLive({ text, fileName })}
+            onExample={openExample}
+          />
+        </main>
+        <AboutCard />
+        <Footer recordedAt={replays[defaultSource]?.recordedAt} />
+      </div>
+    );
+  }
+
   return (
     <div id="top" className="mx-auto w-full max-w-[1440px] px-4 lg:px-8">
-      <TopBar page="home" />
+      <TopBar page="home" onTryIt={goUpload} />
       <JudgePopover first={firstCount} attempts={replayDefault?.attempts.length ?? 0} />
 
       <p className="sr-only" role="status" aria-live="polite">
@@ -438,17 +524,31 @@ export function Bench() {
         <div className="contents lg:col-span-7 lg:flex lg:min-w-0 lg:flex-col lg:gap-7 xl:col-span-8">
           <div className="order-1 lg:order-none">
             <h1 className="max-w-[40ch] font-display font-extrabold tracking-[-0.02em]" style={{ fontSize: "var(--text-xl)", lineHeight: 1.25 }}>
-              Turn the invoices your billing tool already makes into <span className="whitespace-nowrap">EU e-invoices,</span> checked before they go
-              out.
+              {view === "custom" ? (
+                <>Converting your invoice into an <span className="whitespace-nowrap">EU e-invoice</span></>
+              ) : (
+                <>
+                  Example run: an invoice becomes an <span className="whitespace-nowrap">EU e-invoice,</span> checked before it goes out.
+                </>
+              )}
             </h1>
             <p className="mt-1.5 max-w-[70ch] text-[13px] leading-[18px] text-ink-muted lg:text-[14px] lg:leading-5">
-              Since 1 January 2026 Belgian businesses must send Peppol e-invoices, and most billing tools can&apos;t make them.{" "}
+              {view === "custom" ? (
+                <>A live run on the file you uploaded{live?.fileName ? <span className="font-mono text-ink"> {live.fileName}</span> : null}. </>
+              ) : (
+                <>This is an example: a real run we recorded on a sample invoice. </>
+              )}
+              <button type="button" onClick={goUpload} className="link font-semibold text-ink">
+                {view === "custom" ? "Convert another file" : "Upload your own invoice"}
+              </button>
+              {" or "}
               <Link href="/about" className="link text-ink">
-                What is this?
+                read what this is
               </Link>
+              .
             </p>
             <ol className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2" aria-label="How it works">
-              {["Pick an invoice", "The AI writes and fixes a converter", "Released only if 3 checks pass"].map((t, i) => (
+              {["Upload or pick an invoice", "The AI writes and fixes a converter", "Released only if 3 checks pass"].map((t, i) => (
                 <li
                   key={t}
                   className="flex flex-col items-start gap-1 rounded-md bg-surface-2 px-2.5 py-2 text-[12px] font-semibold leading-tight sm:flex-row sm:items-center sm:gap-2.5 sm:px-3 sm:text-[13px] lg:text-[14px]"
@@ -473,6 +573,26 @@ export function Bench() {
 
           {/* run bar */}
           <div className="order-2 lg:order-none">
+            {view === "custom" ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+                <p className="flex h-11 items-center rounded-md border border-line-input bg-surface-1 px-4 text-[15px] font-semibold">
+                  {run?.source.label ?? "Your invoice"}
+                </p>
+                {liveRunning ? (
+                  <button type="button" onClick={stop} className="link shrink-0 text-[14px] font-medium">
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={goUpload}
+                    className="btn-primary inline-flex h-11 items-center justify-center gap-2 rounded-md px-5 text-[15px] font-semibold"
+                  >
+                    Convert another file
+                  </button>
+                )}
+              </div>
+            ) : (
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
               <label className="block sm:hidden">
                 <span className="mb-1 block text-[13px] font-semibold text-ink-muted">Invoice to convert</span>
@@ -532,8 +652,9 @@ export function Bench() {
                 ) : null}
               </div>
             </div>
-            {blockedReason ? <p className="mt-2 text-[13px] text-ink-muted">{blockedReason}</p> : null}
-            {anyLiveRunning ? <p className="mt-2 text-[13px] text-ink-muted">Locked while this run is going.</p> : null}
+            )}
+            {blockedReason && view !== "custom" ? <p className="mt-2 text-[13px] text-ink-muted">{blockedReason}</p> : null}
+            {anyLiveRunning && view !== "custom" ? <p className="mt-2 text-[13px] text-ink-muted">Locked while this run is going.</p> : null}
             {banner ? (
               <p className="fade-in mt-3 flex items-start gap-2 rounded-md bg-surface-2 px-3 py-2.5 text-[14px]">
                 <WarningIcon size={16} className="mt-0.5 shrink-0 text-warning" aria-hidden />
@@ -639,9 +760,11 @@ export function Bench() {
               attempt={attempt}
               sourceLabel={run?.source.label ?? sourceLabel(source)}
               checking={running}
+              runningText={running ? `${Object.values(STEP_LABEL)[stepIndex]}… ${clock(stepElapsed)}` : null}
               stopped={stopped}
               validatorDown={validatorDown}
               fool={fool}
+              examplesOnly={view === "custom"}
               canFool={!running && !!run && run.attempts.some((a) => a.outcome === "certified")}
               foolBlocked={source === "stripe" ? {} : { discount: "This invoice has no document-level discount to drop." }}
               convertBlocked={

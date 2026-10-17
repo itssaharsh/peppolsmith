@@ -4,6 +4,23 @@ import type { ReactNode } from "react";
 import { TopBar } from "@/components/TopBar";
 import { MiniRing, Ring, Tick } from "@/components/glyphs";
 import { GITHUB_URL } from "@/lib/client/format";
+import partners from "../../../config/trading-partners.json";
+
+type Flat = [string, string][];
+function flatten(v: unknown, prefix = ""): Flat {
+  if (v === null || v === undefined) return [];
+  if (typeof v !== "object") return [[prefix, String(v)]];
+  return Object.entries(v as Record<string, unknown>).flatMap(([k, x]) => flatten(x, prefix ? `${prefix} ${k}` : k));
+}
+const KIND_LABEL: Record<string, string> = {
+  stripe: "Stripe invoices (JSON)",
+  cii: "CII e-invoices (XML)",
+  csv: "Billing exports (CSV)",
+};
+const pretty = (k: string) => {
+  const t = k.replace(/_/g, " ").replace(/\bvat\b/i, "VAT").replace(/\biban\b/i, "IBAN").replace(/\bid\b/, "ID");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
 
 export const metadata: Metadata = {
   title: "About Peppolsmith: EU e-invoices from the billing data you already have",
@@ -238,6 +255,30 @@ export default function AboutPage() {
               7, the spreadsheet export in 1 of 1. Nothing was ever released without all three checks passing.
             </li>
           </ul>
+        </Section>
+
+        <Section id="settings" title="Declared settings">
+          <p className="max-w-[66ch] text-[15px] leading-6">
+            An invoice doesn&apos;t always carry everything a Peppol e-invoice needs, such as the Peppol IDs of seller and buyer. Those values come from
+            declared settings for each format, and the ID check accepts them alongside the invoice itself. All of them are fictional, in valid formats.
+          </p>
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            {Object.entries(partners as Record<string, unknown>)
+              .filter(([k]) => k in KIND_LABEL)
+              .map(([k, v]) => (
+                <div key={k} className="min-w-0 rounded-lg border border-line bg-surface-1 p-4">
+                  <h3 className="text-[15px] font-bold">{KIND_LABEL[k]}</h3>
+                  <dl className="mt-2 space-y-1 text-[13px]">
+                    {flatten(v).map(([key, val]) => (
+                      <div key={key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-2">
+                        <dt className="text-ink-muted">{pretty(key)}</dt>
+                        <dd className="break-words font-mono text-[12px]">{val}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
+          </div>
         </Section>
 
         <Section id="built" title="Built with">

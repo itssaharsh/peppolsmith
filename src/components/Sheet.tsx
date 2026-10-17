@@ -239,6 +239,7 @@ function ReleasedOutputs(props: {
   onConvertXml: () => void;
   sourceLabel: string;
   convertBlocked: string | null;
+  examplesOnly: boolean;
 }) {
   const { locked, convert } = props;
   const lockedAttrs = locked ? { "aria-disabled": true as const } : {};
@@ -257,7 +258,7 @@ function ReleasedOutputs(props: {
         <p className="mt-2 text-[13px] text-ink-muted">Downloads unlock when all 3 checks pass.</p>
       ) : (
         <>
-          {props.convertBlocked ? (
+          {props.examplesOnly ? null : props.convertBlocked ? (
             <p className="mt-3 text-[13px] text-ink-muted">{props.convertBlocked}</p>
           ) : (
             <>
@@ -316,10 +317,12 @@ type SheetProps = {
   attempt: Attempt | null;
   sourceLabel: string;
   checking: boolean;
+  runningText: string | null;
   stopped: boolean;
   validatorDown: { since: string } | null;
   fool: { loading: string | null; result: FoolResult | null; error: string | null; tally: { planted: number; passed: number; held: number } };
   canFool: boolean;
+  examplesOnly: boolean;
   foolBlocked: Partial<Record<"cents" | "discount" | "buyer_id", string>>;
   convertBlocked: string | null;
   onFool: (m: "cents" | "discount" | "buyer_id") => void;
@@ -353,9 +356,10 @@ export function Sheet(p: SheetProps) {
     verdict = (
       <div>
         <p className="font-extrabold leading-tight" style={big}>
-          Checking
+          Working on try {(run?.attempts.length ?? 0) + 1}
         </p>
-        <p className="mt-1 text-[14px]">The AI is working on this try. The checks run as soon as its code produces an invoice.</p>
+        {p.runningText ? <p className="shimmer mt-1 text-[15px] font-semibold tnum">{p.runningText}</p> : null}
+        <p className="mt-1 text-[14px]">Usually 20 to 90 seconds per try; up to 6 tries. The checks run as soon as the code produces an invoice.</p>
       </div>
     );
   } else if (outcome === "certified") {
@@ -495,6 +499,7 @@ export function Sheet(p: SheetProps) {
             onConvertXml={p.onConvertXml}
             sourceLabel={p.sourceLabel}
             convertBlocked={p.convertBlocked}
+            examplesOnly={p.examplesOnly}
           />
         ) : null}
       </div>
@@ -510,6 +515,11 @@ export function Sheet(p: SheetProps) {
         ) : null}
       </div>
 
+      {p.examplesOnly ? (
+        <p className="mt-4 border-t border-line pt-3 text-[13px] text-ink-muted">
+          Try to fool the checks, and converting another invoice with the AI off, work on the recorded examples.
+        </p>
+      ) : (
       <details className="mt-4 border-t border-line pt-3" open={showingFool || undefined}>
         <summary className="flex items-center gap-2 text-[14px] font-semibold">
           <CaretRightIcon size={14} className="caret" aria-hidden /> Try to fool the checks
@@ -554,6 +564,7 @@ export function Sheet(p: SheetProps) {
           ) : null}
         </div>
       </details>
+      )}
     </section>
   );
 }

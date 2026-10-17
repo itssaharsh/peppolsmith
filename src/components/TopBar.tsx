@@ -2,7 +2,7 @@ import Link from "next/link";
 import { GITHUB_URL } from "@/lib/client/format";
 
 /** Shared top bar for the bench (/) and /about. */
-export function TopBar({ page }: { page: "home" | "about" }) {
+export function TopBar({ page, onTryIt }: { page: "home" | "about"; onTryIt?: () => void }) {
   return (
     <header className="flex h-12 items-center justify-between gap-4">
       <Link href={page === "home" ? "#top" : "/"} className="wordmark text-[18px] font-extrabold leading-none tracking-[-0.03em]">
@@ -12,6 +12,11 @@ export function TopBar({ page }: { page: "home" | "about" }) {
         {page === "home" ? (
           <button type="button" popoverTarget="judge" className="toplink">
             How to judge<span className="hidden sm:inline"> this (90 s)</span>
+          </button>
+        ) : null}
+        {onTryIt ? (
+          <button type="button" onClick={onTryIt} className="toplink">
+            Try it
           </button>
         ) : (
           <Link href="/" className="toplink">

@@ -152,13 +152,16 @@ export function JudgePopover({ first, attempts }: { first: number | null; attemp
       <h2 className="text-[15px] font-bold">How to judge this in 90 seconds</h2>
       <ol className="mt-3 list-decimal space-y-2 pl-5 text-[14px]">
         <li>
-          {first !== null && attempts > 1
-            ? `Read the tries: the EU checker's errors fall from ${first} to 0. Click any try to see the errors and the AI's code change.`
-            : "Read the tries: each column is one try by the AI and the errors the EU checker found. Click a try to see the errors and the AI's code."}
+          Download an example invoice under the upload box, upload it and press Convert it. The AI writes, runs and fixes a converter in front of
+          you, usually in 20 to 90 seconds per try.
         </li>
-        <li>Pick Stripe invoice, open Try to fool the checks and press Drop the discount: every EU rule passes, and Peppolsmith holds it back.</li>
+        <li>
+          {first !== null && attempts > 1
+            ? `Or watch a recorded example run: the EU checker's errors fall from ${first} to 0. Click any try to see the errors and the AI's code change.`
+            : "Or watch a recorded example run, and click any try to see the errors and the AI's code change."}
+        </li>
+        <li>In the recorded Stripe example, open Try to fool the checks and press Drop the discount: every EU rule passes, and Peppolsmith holds it back.</li>
         <li>Press Convert another invoice, AI off: the approved converter runs again with 0 AI calls.</li>
-        <li>Press Run live to watch the AI write, run and fix its code (a few minutes).</li>
         <li>Download the e-invoice and check it in any public Peppol validator.</li>
       </ol>
     </div>

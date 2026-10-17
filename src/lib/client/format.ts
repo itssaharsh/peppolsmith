@@ -103,7 +103,7 @@ export function amountRow(a: Attempt | null | undefined): ReconRow | undefined {
 export const STEP_LABEL: Record<string, string> = {
   write: "The AI is writing the converter",
   run: "Running it in the sandbox, no internet",
-  rules: "Checking it against the EU rules",
+  rules: "The EU checker is checking",
   reconcile: "Comparing the totals with the bill",
   provenance: "Checking every company ID",
 };
