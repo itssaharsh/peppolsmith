@@ -21,7 +21,16 @@ Peppolsmith writes the missing converter:
    - **Provenance:** every party name, VAT ID, Peppol ID and IBAN must come from the source or the declared trading-partner settings.
 6. **The result is Certified or Held.** A certified converter then runs on new invoices of the same kind with no model call.
 
-**Try it with a file:** open the live page, upload an invoice and press **Convert it**. Accepted formats are a Stripe invoice (JSON from the Stripe API), a UN/CEFACT CII e-invoice (XML) or a billing CSV export in our layout. No invoice handy? Upload one of these:
+**Try it with a file:** open the live page, upload an invoice and press **Convert it**. Accepted formats:
+- a **PDF invoice** with selectable text;
+- a Stripe invoice (JSON from the Stripe API);
+- a UN/CEFACT CII e-invoice (XML);
+- a billing CSV export in our layout.
+
+**How PDFs are handled:** the AI first reads the PDF's text into invoice data. Checks with no AI then verify that reading before anything is converted. Every amount, the invoice number, the VAT numbers and the IBAN must be printed on the PDF; quantity × price, the lines, VAT and the total must add up. Peppol IDs are derived from the VAT numbers. A reading that fails is refused with the reason.
+
+No invoice handy? Upload one of these:
+- [`public/examples/invoice.pdf`](public/examples/invoice.pdf): a fictional caterer's PDF invoice with two VAT rates.
 - [`public/examples/stripe-invoice.json`](public/examples/stripe-invoice.json): a Stripe test-mode invoice.
 - [`public/examples/billing-export.csv`](public/examples/billing-export.csv): a CSV export.
 - [`public/examples/cii-invoice.xml`](public/examples/cii-invoice.xml): the official CEN CII example with new amounts.

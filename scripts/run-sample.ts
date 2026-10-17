@@ -5,10 +5,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { startRun, stepRun } from "../src/lib/run";
 import { isSourceKind } from "../src/lib/sources";
 import { formatEUR } from "../src/lib/money";
+import { sourceFromPdf } from "../src/lib/pdf";
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 const uploadArg = process.argv.indexOf("--upload");
-const upload = uploadArg > 0 ? readFileSync(process.argv[uploadArg + 1], "utf8") : undefined;
+const uploadPath = uploadArg > 0 ? process.argv[uploadArg + 1] : undefined;
+const isPdf = Boolean(uploadPath?.toLowerCase().endsWith(".pdf"));
+const upload = uploadPath && !isPdf ? readFileSync(uploadPath, "utf8") : uploadPath && isPdf ? "" : undefined;
 const kind = process.argv[2];
 if (!isSourceKind(kind) && upload === undefined) {
   console.error("usage: run-sample.ts <stripe|cii|csv> [--max N] [--record]   or   run-sample.ts upload --upload <file> [--max N]");
@@ -19,7 +22,9 @@ const max = maxArg > 0 ? Number(process.argv[maxArg + 1]) : 6;
 const log = (l: string) => console.log(`  · ${l}`);
 
 async function main() {
-  let run = await startRun((isSourceKind(kind) ? kind : "stripe") as never, log, upload);
+  const prepared = isPdf && uploadPath ? await sourceFromPdf(new Uint8Array(readFileSync(uploadPath))) : undefined;
+  if (prepared) console.log(`PDF read and verified (${prepared.model}); converting as ${prepared.source.label}:\n${prepared.source.raw}`);
+  let run = await startRun((isSourceKind(kind) ? kind : "stripe") as never, log, prepared ? undefined : upload, prepared);
   console.log(`run ${run.runId} on ${run.sandbox.vmId} (${run.source.label}${run.sandbox.resumeMs != null ? `, resumed in ${run.sandbox.resumeMs} ms` : ""})`);
   while (run.verdict === "running" && run.attempts.length < max) {
     run = await stepRun(run, log);

@@ -212,7 +212,7 @@ export function Bench() {
     window.history.replaceState(null, "", `?${q.toString()}`);
   };
 
-  const startLive = useCallback(async (upload?: { text: string; fileName: string }) => {
+  const startLive = useCallback(async (upload?: { text: string; fileName: string; pdf?: string }) => {
     if (anyLiveRunning) return;
     setBanner(null);
     setUploadError(null);
@@ -231,7 +231,7 @@ export function Bench() {
     try {
       const start = await postJson<RunLog>(
         "/api/run",
-        upload ? { upload: upload.text, fileName: upload.fileName } : { source: src },
+        upload ? (upload.pdf ? { pdf: upload.pdf, fileName: upload.fileName } : { upload: upload.text, fileName: upload.fileName }) : { source: src },
         ctrl.signal,
       );
       if (!start.ok || !start.data || !Array.isArray((start.data as RunLog).attempts)) {
@@ -520,7 +520,7 @@ export function Bench() {
             starting={starting}
             error={uploadError}
             blockedReason={busy && !starting ? "A live run is already going. Live runs go one at a time." : capped ? "Today's live runs are used up." : null}
-            onConvert={(text, fileName) => void startLive({ text, fileName })}
+            onConvert={(text, fileName, pdf) => void startLive({ text, fileName, pdf })}
             onExample={openExample}
           />
         </main>

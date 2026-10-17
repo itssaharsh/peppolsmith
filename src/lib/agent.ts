@@ -41,8 +41,19 @@ export function extractCode(text: string): string | null {
   return null;
 }
 
+/** Asks for a JSON answer (used to read a PDF invoice's text), with the same provider chain. */
+export async function askJson(system: string, user: string): Promise<ModelReply> {
+  return writeCode(user, Date.now() + 120_000, 0, system, (t) => /\{[\s\S]*\}/.test(t));
+}
+
 /** Calls the providers in order until one returns a usable code block. */
-export async function writeCode(userPrompt: string, deadline = Date.now() + 200_000, temperature = 0.2): Promise<ModelReply> {
+export async function writeCode(
+  userPrompt: string,
+  deadline = Date.now() + 200_000,
+  temperature = 0.2,
+  system = SYSTEM_PROMPT,
+  usable: (text: string) => boolean = (t) => Boolean(extractCode(t)) || hasEditBlocks(t),
+): Promise<ModelReply> {
   const errors: string[] = [];
   for (const p of PROVIDERS) {
     const budget = Math.min(p.timeoutMs, deadline - Date.now());
@@ -66,7 +77,7 @@ export async function writeCode(userPrompt: string, deadline = Date.now() + 200_
           max_tokens: 8000,
           temperature,
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: system },
             { role: "user", content: userPrompt },
           ],
         }),
@@ -76,7 +87,7 @@ export async function writeCode(userPrompt: string, deadline = Date.now() + 200_
       const d = (await res.json()) as { model?: string; choices?: { message?: { content?: string }; finish_reason?: string }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
       const text = d.choices?.[0]?.message?.content ?? "";
       if (d.choices?.[0]?.finish_reason === "length") throw new Error("the reply hit the token limit");
-      if (!extractCode(text) && !hasEditBlocks(text)) throw new Error("no code block or edit block in the reply");
+      if (!usable(text)) throw new Error("the reply had nothing usable");
       const tokensIn = d.usage?.prompt_tokens ?? 0;
       const tokensOut = d.usage?.completion_tokens ?? 0;
       return {

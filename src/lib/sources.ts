@@ -162,7 +162,9 @@ export function detectKind(raw: string): SourceKind | null {
  * An uploaded invoice as a source. Its reference totals come from the same parsers as the samples; Peppol IDs and
  * seller details the invoice doesn't carry come from the declared settings for its format.
  */
-export function sourceFromUpload(raw: string): Source {
+export type UploadOverride = { label: string; provenance: string; partners: unknown };
+
+export function sourceFromUpload(raw: string, override?: UploadOverride): Source {
   if (Buffer.byteLength(raw, "utf8") > MAX_UPLOAD_BYTES) throw new Error(`The file is larger than ${MAX_UPLOAD_BYTES / 1000} KB.`);
   const kind = detectKind(raw);
   if (!kind) throw new Error("This doesn't look like a Stripe invoice JSON, a CII e-invoice XML or the CSV export layout.");
@@ -191,13 +193,13 @@ export function sourceFromUpload(raw: string): Source {
   }
   return {
     kind,
-    label: UPLOAD_LABEL[kind],
-    provenance: "Uploaded by you. Seller details and Peppol IDs the file doesn't carry come from the declared settings for this format.",
+    label: override?.label ?? UPLOAD_LABEL[kind],
+    provenance: override?.provenance ?? "Uploaded by you. Seller details and Peppol IDs the file doesn't carry come from the declared settings for this format.",
     ref: String(parsed.ref ?? "uploaded invoice"),
     fileName: META[kind].fileName,
     raw,
     contract: c,
-    partners: (partnersFile as Record<string, unknown>)[kind],
+    partners: override?.partners ?? (partnersFile as Record<string, unknown>)[kind],
   };
 }
 

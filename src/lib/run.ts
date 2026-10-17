@@ -18,11 +18,15 @@ export const RULESETS: RunLog["rulesets"] = [
 
 /** The source a run log describes: an uploaded file (carried, signed, in the log) or a bundled sample. */
 export function sourceOf(runlog: RunLog): Source {
-  return runlog.source.custom && runlog.source.raw ? sourceFromUpload(runlog.source.raw) : loadSource(runlog.source.kind);
+  const s = runlog.source;
+  if (!s.custom || !s.raw) return loadSource(s.kind);
+  return sourceFromUpload(s.raw, s.partners ? { label: s.label, provenance: s.provenance, partners: s.partners } : undefined);
 }
 
-export async function startRun(kind: SourceKind, _log?: Log, upload?: string): Promise<RunLog> {
-  const source = upload !== undefined ? sourceFromUpload(upload) : loadSource(kind);
+/** `prepared` is a source built elsewhere (a verified PDF reading); `upload` is an uploaded file's text. */
+export async function startRun(kind: SourceKind, _log?: Log, upload?: string, prepared?: { source: Source; costUsd: number; model: string }): Promise<RunLog> {
+  const source = prepared?.source ?? (upload !== undefined ? sourceFromUpload(upload) : loadSource(kind));
+  const custom = Boolean(prepared) || upload !== undefined;
   const golden = await resumeGolden();
   if (!golden) throw new Error("the validator VM is not available");
   const { sandbox, resumeMs } = golden;
@@ -30,8 +34,18 @@ export async function startRun(kind: SourceKind, _log?: Log, upload?: string): P
     runId: newRunId(),
     mode: "live",
     recordedAt: new Date().toISOString(),
-    source: { kind: source.kind, label: source.label, provenance: source.provenance, ref: source.ref, fileName: source.fileName, raw: source.raw, custom: upload !== undefined || undefined },
-    model: { id: "", fallbackUsed: false, calls: 0, costUsd: 0 },
+    source: {
+      kind: source.kind,
+      label: source.label,
+      provenance: source.provenance,
+      ref: source.ref,
+      fileName: source.fileName,
+      raw: source.raw,
+      custom: custom || undefined,
+      partners: prepared ? source.partners : undefined,
+      fromPdf: prepared ? true : undefined,
+    },
+    model: { id: prepared?.model ?? "", fallbackUsed: false, calls: prepared ? 1 : 0, costUsd: prepared?.costUsd ?? 0 },
     sandbox: {
       vmId: sandbox.id,
       image: IMAGE,

@@ -6,6 +6,7 @@ import { useRef, useState, type DragEvent } from "react";
 import { SOURCES, type SourceKey } from "@/lib/client/format";
 
 const MAX_BYTES = 100 * 1024;
+const MAX_PDF_BYTES = 2_000_000;
 
 export type Detected = { kind: SourceKey; label: string } | null;
 
@@ -29,6 +30,7 @@ export function detectKind(text: string): Detected {
 }
 
 const EXAMPLES = [
+  { href: "/examples/invoice.pdf", label: "Invoice (PDF)" },
   { href: "/examples/stripe-invoice.json", label: "Stripe invoice (JSON)" },
   { href: "/examples/billing-export.csv", label: "Billing export (CSV)" },
   { href: "/examples/cii-invoice.xml", label: "CII e-invoice (XML)" },
@@ -38,12 +40,12 @@ type Props = {
   starting: boolean;
   error: string | null;
   blockedReason: string | null;
-  onConvert: (text: string, fileName: string) => void;
+  onConvert: (text: string, fileName: string, pdf?: string) => void;
   onExample: (k: SourceKey) => void;
 };
 
 export function Upload({ starting, error, blockedReason, onConvert, onExample }: Props) {
-  const [file, setFile] = useState<{ name: string; text: string; size: number } | null>(null);
+  const [file, setFile] = useState<{ name: string; text: string; size: number; pdf?: string } | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
   const [paste, setPaste] = useState(false);
   const [pasted, setPasted] = useState("");
@@ -53,12 +55,29 @@ export function Upload({ starting, error, blockedReason, onConvert, onExample }:
   const take = (f: File | undefined | null) => {
     setReadError(null);
     if (!f) return;
+    if (/\.pdf$/i.test(f.name)) {
+      if (f.size > MAX_PDF_BYTES) {
+        setFile(null);
+        setReadError(`${f.name} is ${(f.size / 1_000_000).toFixed(1)} MB. The limit for PDFs is 2 MB.`);
+        return;
+      }
+      const pdfReader = new FileReader();
+      pdfReader.onload = () => {
+        const bytes = new Uint8Array(pdfReader.result as ArrayBuffer);
+        let bin = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        setFile({ name: f.name, text: "", size: f.size, pdf: btoa(bin) });
+      };
+      pdfReader.onerror = () => setReadError(`Couldn't read ${f.name}.`);
+      pdfReader.readAsArrayBuffer(f);
+      return;
+    }
     if (!/\.(json|csv|xml)$/i.test(f.name)) {
       setFile(null);
       setReadError(
-        /\.(pdf|png|jpe?g|docx?)$/i.test(f.name)
-          ? `${f.name} is a picture of an invoice. Peppolsmith converts the invoice data behind it: export it from your billing tool instead (Stripe: the invoice JSON; most billing apps: a CSV export).`
-          : `${f.name} isn't a .json, .csv or .xml file.`,
+        /\.(png|jpe?g|heic|docx?)$/i.test(f.name)
+          ? `${f.name} is a photo or a document file. Upload the invoice as a PDF with selectable text, or the data export from your billing tool.`
+          : `${f.name} isn't a PDF, .json, .csv or .xml file.`,
       );
       return;
     }
@@ -82,7 +101,8 @@ export function Upload({ starting, error, blockedReason, onConvert, onExample }:
   const text = paste ? pasted : (file?.text ?? "");
   const name = paste ? "pasted-invoice" : (file?.name ?? "");
   const tooBig = paste && new Blob([pasted]).size > MAX_BYTES;
-  const detected = detectKind(text);
+  const isPdf = !paste && !!file?.pdf;
+  const detected: Detected = isPdf ? { kind: "csv", label: "PDF invoice: the AI reads it, then checks with no AI verify every number it read" } : detectKind(text);
   const hasInput = paste ? pasted.trim().length > 0 : !!file;
   const canConvert = hasInput && !!detected && !tooBig && !starting && !blockedReason;
 
@@ -90,12 +110,11 @@ export function Upload({ starting, error, blockedReason, onConvert, onExample }:
     <section aria-labelledby="upload-h" className="mx-auto mt-6 max-w-[880px] lg:mt-10" data-region="upload">
       <div className="rounded-lg border border-line bg-surface-1 px-5 py-6 sm:px-8 sm:py-8">
         <h1 id="upload-h" className="font-display font-extrabold leading-[1.1] tracking-[-0.02em]" style={{ fontSize: "var(--text-landing)" }}>
-          Turn your billing data into EU e-invoices.
+          Turn your invoices into EU e-invoices.
         </h1>
         <p className="mt-3 max-w-[68ch] text-[15px] leading-6 sm:text-[16px]">
-          Your billing tool already holds every invoice as data, but rarely exports it in the EU&apos;s Peppol format. Upload one invoice
-          export: an AI writes a converter for that format, runs it in a locked sandbox, and fixes it until the official EU checker finds 0
-          errors. You get a Peppol e-invoice, released only if its totals match your data, and a converter that handles the next ones with no AI.
+          Upload an invoice: a PDF, or the data your billing tool exports. An AI writes a converter for it, runs it in a locked sandbox, and
+          fixes it until the official EU checker finds 0 errors. You get a Peppol e-invoice, released only if its totals match your invoice.
         </p>
 
         {!paste ? (
@@ -111,13 +130,13 @@ export function Upload({ starting, error, blockedReason, onConvert, onExample }:
             }`}
           >
             <FileArrowUpIcon size={36} className="text-ink-muted" aria-hidden />
-            <p className="text-[15px] font-semibold">Drop an invoice export here</p>
-            <p className="text-[13px] text-ink-muted">A Stripe invoice (.json), a billing CSV export (.csv) or a CII e-invoice (.xml), up to 100 KB</p>
-            <p className="max-w-[52ch] text-[12px] text-ink-muted">Not PDFs: a PDF is a picture of an invoice. Peppolsmith converts the data behind it, the way your billing tool exports it.</p>
+            <p className="text-[15px] font-semibold">Drop an invoice here</p>
+            <p className="text-[13px] text-ink-muted">A PDF (up to 2 MB), a Stripe invoice (.json), a billing CSV export (.csv) or a CII e-invoice (.xml)</p>
+            <p className="max-w-[56ch] text-[12px] text-ink-muted">For a PDF, the AI reads it first; then every amount, the invoice number and the VAT numbers it read are checked against the PDF with no AI.</p>
             <input
               ref={inputRef}
               type="file"
-              accept=".json,.csv,.xml,application/json,text/csv,text/xml,application/xml"
+              accept=".pdf,.json,.csv,.xml,application/pdf,application/json,text/csv,text/xml,application/xml"
               className="sr-only"
               aria-label="Choose an invoice file"
               onChange={(e) => {
@@ -180,11 +199,11 @@ export function Upload({ starting, error, blockedReason, onConvert, onExample }:
             <button
               type="button"
               aria-disabled={canConvert ? undefined : true}
-              onClick={canConvert ? () => onConvert(text, name) : undefined}
+              onClick={canConvert ? () => onConvert(text, name, isPdf ? file?.pdf : undefined) : undefined}
               className="btn-primary inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-md px-6 text-[16px] font-semibold"
             >
               <PlayIcon size={18} weight="fill" aria-hidden />
-              {starting ? "Starting…" : "Convert it"}
+              {starting ? (isPdf ? "Reading your PDF…" : "Starting…") : "Convert it"}
             </button>
           </div>
         ) : null}
