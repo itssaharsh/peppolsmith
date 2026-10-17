@@ -21,6 +21,13 @@ Peppolsmith writes the missing converter:
    - **Provenance:** every party name, VAT ID, Peppol ID and IBAN must come from the source or the declared trading-partner settings.
 6. **The result is Certified or Held.** A certified converter then runs on new invoices of the same kind with no model call.
 
+**Try it with a file:** open the live page, upload an invoice and press **Convert it**. Accepted formats are a Stripe invoice (JSON from the Stripe API), a UN/CEFACT CII e-invoice (XML) or a billing CSV export in our layout. No invoice handy? Upload one of these:
+- [`public/examples/stripe-invoice.json`](public/examples/stripe-invoice.json): a Stripe test-mode invoice.
+- [`public/examples/billing-export.csv`](public/examples/billing-export.csv): a CSV export.
+- [`public/examples/cii-invoice.xml`](public/examples/cii-invoice.xml): the official CEN CII example with new amounts.
+
+Peppol IDs and seller details that an invoice doesn't carry come from the declared settings for its format (`config/trading-partners.json`). Recorded example runs are one click away on the page.
+
 ## What we measured (recorded runs, 17 Oct 2026)
 
 | Source | Official rules failed, per attempt | Model calls | Model cost | Time |
@@ -66,6 +73,7 @@ stripe projects env --pull          # writes .env: CREATEOS_PROJECT_API_KEY, OPE
 npx tsx scripts/check-stack.ts      # one real call to CreateOS, Featherless and OpenRouter
 npx tsx scripts/bootstrap-vm.ts --self-test   # creates or resumes the validator VM; official examples pass, a changed amount fails BR-CO-16
 npx tsx scripts/run-sample.ts cii   # one full write → run → check → fix run in the terminal (also: stripe, csv)
+npx tsx scripts/run-sample.ts upload --upload public/examples/cii-invoice.xml   # the same, on any invoice file
 npx tsx scripts/check-extras.ts     # planted bugs must be held; model-off conversion must certify
 npm test                            # gates, sources, edit application, sandbox helpers
 npm run dev                         # the page on http://localhost:3000
@@ -105,6 +113,7 @@ vm/fool.py            plants one converter bug while keeping the XML internally 
 - Passing the CEN and Peppol rules is not delivery over the Peppol network, which needs an access point.
 - The samples are labelled in the app: one official CEN example (unmodified), Stripe test-mode invoices we created, and CSV rows we wrote. Seller and buyer IDs are fictional; the CII seller contact is our declared setting, because the example leaves it empty and Peppol's German rules require one.
 - Live runs are limited to one at a time and 60 a day, so the public URL can't run up the model bill.
+- An uploaded invoice is sent to the model provider and to the sandbox VM, and stays in your browser's copy of the run. Don't upload real customer data to the demo.
 
 ## Build window
 
