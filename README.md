@@ -31,6 +31,7 @@ Peppolsmith writes the missing converter:
 
 No invoice handy? Upload one of these:
 - [`public/examples/invoice.pdf`](public/examples/invoice.pdf): a fictional caterer's PDF invoice with two VAT rates.
+- [`public/examples/invoice-wrong-total.pdf`](public/examples/invoice-wrong-total.pdf): the same invoice with its total due misprinted as €483.70. It is refused before anything is converted.
 - [`public/examples/stripe-invoice.json`](public/examples/stripe-invoice.json): a Stripe test-mode invoice.
 - [`public/examples/billing-export.csv`](public/examples/billing-export.csv): a CSV export.
 - [`public/examples/cii-invoice.xml`](public/examples/cii-invoice.xml): the official CEN CII example with new amounts.

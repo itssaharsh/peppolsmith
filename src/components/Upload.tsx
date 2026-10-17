@@ -31,6 +31,7 @@ export function detectKind(text: string): Detected {
 
 const EXAMPLES = [
   { href: "/examples/invoice.pdf", label: "Invoice (PDF)" },
+  { href: "/examples/invoice-wrong-total.pdf", label: "Invoice with a wrong total (PDF)" },
   { href: "/examples/stripe-invoice.json", label: "Stripe invoice (JSON)" },
   { href: "/examples/billing-export.csv", label: "Billing export (CSV)" },
   { href: "/examples/cii-invoice.xml", label: "CII e-invoice (XML)" },

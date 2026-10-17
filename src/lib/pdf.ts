@@ -83,18 +83,20 @@ export function verifyReading(d: PdfInvoice, text: string): string[] {
   });
   onPdf("The net total", d.net_total);
   onPdf("The amount due", d.amount_due);
-  // many invoices print VAT per rate only: an unprinted VAT total is fine if it is exactly due - net, both printed
-  if (!printed.has(Math.abs(cents(d.vat_total))) && Math.abs(cents(d.amount_due) - cents(d.net_total) - cents(d.vat_total)) > 1) {
-    problems.push(`The VAT total ${formatEUR(cents(d.vat_total))} isn't printed on the PDF and isn't the amount due minus the net total.`);
-  }
+  const addsUp = Math.abs(cents(d.net_total) + cents(d.vat_total) - cents(d.amount_due)) <= 1;
+  // many invoices print VAT per rate only, so the VAT total need not be printed: when net + VAT = due (both printed
+  // and checked above), the VAT total is pinned by printed numbers; when it doesn't add up, the first problem says so
   const sum = d.lines.reduce((s, l) => s + cents(l.amount), 0);
   if (Math.abs(sum - cents(d.net_total)) > 1) problems.push(`The lines add up to ${formatEUR(sum)}, not the net total ${formatEUR(cents(d.net_total))}.`);
   const byRate = new Map<number, number>();
   for (const l of d.lines) byRate.set(Number(l.vat_rate), (byRate.get(Number(l.vat_rate)) ?? 0) + cents(l.amount));
   const vat = [...byRate].reduce((s, [rate, base]) => s + Math.round((base * rate) / 100), 0);
   if (Math.abs(vat - cents(d.vat_total)) > 2) problems.push(`VAT on the lines comes to ${formatEUR(vat)}, not the printed ${formatEUR(cents(d.vat_total))}.`);
-  if (Math.abs(cents(d.net_total) + cents(d.vat_total) - cents(d.amount_due)) > 1) {
-    problems.push(`Net ${formatEUR(cents(d.net_total))} plus VAT ${formatEUR(cents(d.vat_total))} isn't the amount due ${formatEUR(cents(d.amount_due))}.`);
+  if (!addsUp) {
+    // the clearest reason goes first
+    problems.unshift(
+      `Net ${formatEUR(cents(d.net_total))} plus VAT ${formatEUR(cents(d.vat_total))} is ${formatEUR(cents(d.net_total) + cents(d.vat_total))}, but the PDF says ${formatEUR(cents(d.amount_due))} is due.`,
+    );
   }
   if ((d.currency || "EUR").toUpperCase() !== "EUR") problems.push("Only invoices in euro are supported in this demo.");
   return problems;
@@ -159,7 +161,7 @@ export async function sourceFromPdf(bytes: Uint8Array): Promise<{ source: Source
     throw new Error("The AI couldn't read this PDF as an invoice.");
   }
   const problems = verifyReading(reading.data, text);
-  if (problems.length) throw new Error(`The AI's reading of this PDF didn't pass the checks, so nothing was converted. ${problems.slice(0, 4).join(" ")}`);
+  if (problems.length) throw new Error(`This PDF doesn't add up, so nothing was converted. ${problems.slice(0, 3).join(" ")}`);
   const partners = partnersFrom(reading.data);
   const source = sourceFromUpload(toCsv(reading.data), { label: "Your invoice (PDF)", provenance: PDF_PROVENANCE, partners });
   if (Math.abs(source.contract.payable - cents(reading.data.amount_due)) > 2) {
